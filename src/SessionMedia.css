@@ -10,7 +10,7 @@
   border: 1px solid #e0e8da;
   border-radius: 8px;
   margin-bottom: 14px;
-  font-size: 11px;
+  font-size: 12px;
   color: #536c49;
 }
 .connection-bar > span {
@@ -40,14 +40,14 @@
 .connection-bar small {
   margin-left: auto;
   color: #728469;
-  font-size: 9px;
+  font-size: 10px;
 }
 .capabilities-note {
   display: flex;
   gap: 15px;
   flex-wrap: wrap;
   margin-bottom: 25px;
-  font-size: 10px;
+  font-size: 11px;
   color: #73836a;
 }
 .capabilities-note span {
@@ -64,7 +64,7 @@
   background: #f9fbf5;
 }
 .microphone-controls small {
-  font-size: 9px;
+  font-size: 10px;
   color: #75886b;
   line-height: 1.6;
 }
@@ -73,7 +73,7 @@
   align-items: center;
   gap: 7px;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   padding: 9px;
   border: 1px solid #dce5d5;
   border-radius: 6px;
@@ -100,10 +100,10 @@
   color: #688759;
 }
 .upload-title h3 {
-  font-size: 13px;
+  font-size: 14px;
 }
 .upload-title p {
-  font-size: 11px;
+  font-size: 12px;
   color: #7c8b72;
   margin-top: 4px;
 }
@@ -116,15 +116,15 @@
   display: flex;
   justify-content: space-between;
   margin: 12px 0 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: #628155;
 }
 .upload-video-card small {
-  font-size: 10px;
+  font-size: 11px;
   color: #7c8d6f;
 }
 .connection-note {
-  font-size: 11px;
+  font-size: 12px;
   color: #7e8c72;
   margin-top: 15px;
   line-height: 1.8;
@@ -137,7 +137,7 @@
   max-height: 710px;
 }
 .agent-mode-note {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: #748568;
   margin: 0 0 15px;
@@ -153,7 +153,7 @@
   border-bottom: 2px solid transparent;
   padding: 10px 8px;
   color: #7c8c70;
-  font-size: 10px;
+  font-size: 11px;
   flex: 1;
 }
 .conversation-tabs button[aria-selected="true"] {
@@ -180,7 +180,7 @@
   padding: 24px 10px;
 }
 .chat-empty p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   margin-top: 12px;
 }
@@ -195,18 +195,18 @@
 .chat-note small,
 .chat-question small {
   color: #7d936b;
-  font-size: 9px;
+  font-size: 10px;
 }
 .chat-note p,
 .chat-question p {
-  font-size: 11px;
+  font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: #4f6943;
   margin-top: 5px;
 }
 .chat-question h4 {
-  font-size: 12px;
+  font-size: 13px;
   margin: 8px 0;
   line-height: 1.7;
 }
@@ -214,7 +214,7 @@
   margin-top: 13px;
 }
 .chat-question label {
-  font-size: 10px;
+  font-size: 11px;
 }
 .chat-composer {
   border-top: 1px solid #e0e8d8;
@@ -222,15 +222,15 @@
   margin-top: 13px;
 }
 .chat-composer label {
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 10px;
 }
 .chat-composer textarea {
-  font-size: 11px;
+  font-size: 12px;
   min-height: 72px;
 }
 .chat-composer button {
-  font-size: 10px;
+  font-size: 11px;
   padding: 9px 13px;
   width: 100%;
 }
@@ -238,12 +238,12 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 8px;
+  font-size: 9px;
   color: #829575;
   margin-top: 14px;
 }
 .chat-sync button {
-  font-size: 9px;
+  font-size: 10px;
 }
 .session-review-layout {
   display: grid;
@@ -258,7 +258,7 @@
 .media-summary > p {
   padding: 24px;
   color: #76896b;
-  font-size: 12px;
+  font-size: 13px;
 }
 .saved-recording-body {
   padding: 0 24px 24px;
@@ -283,10 +283,10 @@
   margin-top: 20px;
 }
 .analysis-status strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 .analysis-status p {
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 5px;
 }
 .analysis-status.failed {
@@ -298,16 +298,16 @@
   padding: 22px;
 }
 .import-video h3 {
-  font-size: 14px;
+  font-size: 15px;
 }
 .import-video > p {
-  font-size: 11px;
+  font-size: 12px;
   color: #839274;
   margin: 7px 0 17px;
 }
 .import-video input {
   max-width: 480px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .report-body {
   padding: 0 25px 26px;
@@ -316,11 +316,11 @@
   margin-top: 20px;
 }
 .report-body h3 {
-  font-size: 17px;
+  font-size: 18px;
   margin: 20px 0 12px;
 }
 .report-body p {
-  font-size: 12px;
+  font-size: 13px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: #6b805d;
@@ -328,13 +328,13 @@
 .report-meta {
   display: flex;
   gap: 18px;
-  font-size: 10px;
+  font-size: 11px;
   color: #899a7b;
   margin: 0 0 20px;
   flex-wrap: wrap;
 }
 .report-text {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: #6b7e5c;
   background: #f7faf3;
@@ -354,7 +354,7 @@
   flex: 1;
 }
 .report-instructions h4 {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
   margin: 0 0 7px;
   color: #4a663b;
@@ -374,7 +374,7 @@
   color: #567f3f;
   border: 1px solid #dce7d2;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 .time-source:hover {
@@ -390,13 +390,13 @@
   margin-top: 15px;
 }
 .source-selection legend {
-  font-size: 10px;
+  font-size: 11px;
   color: #7b9168;
   padding: 0 5px;
 }
 .source-selection .checkbox {
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   align-items: center;
 }
 .source-selection .checkbox input {
@@ -411,16 +411,16 @@
   margin: 22px 0;
 }
 .report-uncertainties h4 {
-  font-size: 12px;
+  font-size: 13px;
   margin: 0 0 9px;
 }
 .report-uncertainties li {
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 8px;
   line-height: 1.7;
 }
 .report-uncertainties small {
-  font-size: 10px;
+  font-size: 11px;
 }
 .report-review {
   border-top: 1px solid #e0e8d7;
@@ -439,7 +439,7 @@
   margin: 15px 0;
   border-radius: 8px;
   background: #f0f5e9;
-  font-size: 11px;
+  font-size: 12px;
   color: #72865f;
 }
 .badge.failed {
@@ -486,7 +486,7 @@
     width: 100%;
   }
   .capabilities-note {
-    font-size: 9px;
+    font-size: 10px;
     gap: 9px;
   }
   .upload-video-card {

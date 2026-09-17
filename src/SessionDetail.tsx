@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirmAction";
 import { date, useAction } from "./utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { allPages, json } from "./api";
@@ -430,7 +431,7 @@ export default function SessionDetail({
               void run(async () => {
                 if (
                   captureProtected &&
-                  !window.confirm(
+                  !await confirmAction(
                     "Finalizar detendrá la pantalla y eliminará el video local de esta vista. ¿Ya descargaste tu copia y quieres finalizar?",
                   )
                 )

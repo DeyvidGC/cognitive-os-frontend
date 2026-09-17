@@ -3,16 +3,22 @@ import { allPages, json } from "./api";
 import type { Client, Clarification, Event, Session } from "./api";
 import { ErrorNotice, Icon } from "./ui";
 import { useAction } from "./utils";
+import LiveAgent from "./LiveAgent";
+import type { CaptureState } from "./screenCapture";
 export default function AgentConversation({
   api,
   session,
   writable,
   onContextChange,
+  capture,
+  canAnswer = writable,
 }: {
   api: Client;
   session: Session;
   writable: boolean;
   onContextChange: () => Promise<void>;
+  capture?: CaptureState;
+  canAnswer?: boolean;
 }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [questions, setQuestions] = useState<Clarification[]>([]);
@@ -67,10 +73,7 @@ export default function AgentConversation({
         <i />
         Análisis al finalizar el video
       </span>
-      <p className="agent-mode-note">
-        La observación y la conversación en vivo todavía no están disponibles.
-        Tus mensajes se guardan como contexto de la sesión.
-      </p>
+      <LiveAgent api={api} sessionId={session.id} allowed={writable} capture={capture} onReply={onContextChange} />
       <div
         className="conversation-tabs"
         role="tablist"
@@ -120,7 +123,7 @@ export default function AgentConversation({
               <h4>{q.question}</h4>
               {q.answer ? (
                 <p>{q.answer}</p>
-              ) : writable ? (
+              ) : canAnswer ? (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();

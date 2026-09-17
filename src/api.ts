@@ -95,7 +95,7 @@ const translations: Record<string, string> = {
     "Añade una nota o una evidencia antes de finalizar.",
 };
 export function client(token = "", organization = "", onExpired?: () => void) {
-  return async function request<T>(
+  async function request<T>(
     path: string,
     options: RequestInit = {},
   ): Promise<T> {
@@ -143,7 +143,16 @@ export function client(token = "", organization = "", onExpired?: () => void) {
     if (response.status === 204) return undefined as T;
     if (path.endsWith("/file")) return (await response.blob()) as T;
     return response.json();
-  };
+  }
+  return Object.assign(request, {
+    agentSocket(sessionId: string) {
+      const url = new URL(`${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/live`, window.location.href);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(url);
+      socket.addEventListener("open", () => socket.send(JSON.stringify({ type: "auth", token, organization_id: organization, consent: true })), { once: true });
+      return socket;
+    },
+  });
 }
 export type Client = ReturnType<typeof client>;
 export const json = (body: unknown, method = "POST"): RequestInit => ({

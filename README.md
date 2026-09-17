@@ -83,12 +83,10 @@ Los videos locales deben guardarse o descargarse antes de salir. Los enlaces de 
 
 En producción servir `dist` y configurar un reverse proxy de `/api` hacia FastAPI. El proxy Vite solo aplica en desarrollo/preview. Las subidas van directamente a Azure y requieren su propio CORS. Las tipografías usan Google Fonts con alternativas locales.
 
-## Miniatura del agente
+## Barra de captura
 
-En una sesión en captura, pulsa «Abrir agente en miniatura» antes de cambiar a otra aplicación. Usa Document Picture-in-Picture cuando está disponible; requiere HTTPS o localhost y un clic del usuario. Mantén abierta la pestaña original. La alternativa «Usar miniatura dentro de esta página» no se superpone a otras aplicaciones.
+La barra aparece al obtener la pantalla compartida; cerrar el selector sin compartir no la abre. Incluye micrófono, grabar/pausar/reanudar/detener y conversación desplegable. La apertura externa automática depende de la activación permitida por el navegador; si falla queda una barra dentro de la página. El botón permite solicitar nuevamente la ventana externa. Cerrar la barra no detiene la grabación. Al terminar se muestra el guardado encima de la vista previa.
 
-La miniatura muestra avatar, tiempo, micrófono, grabar/pausar/reanudar/detener y conversación expandible. Activa el micrófono antes de iniciar la grabación. Cerrar la miniatura no detiene la captura y conserva el borrador de texto. El backend actual sigue analizando después de subir: esta interfaz no habilita respuestas de IA en vivo por sí sola.
+Las confirmaciones internas usan un diálogo accesible con el estilo de la aplicación. El aviso al cerrar o recargar la pestaña sigue siendo del navegador y no puede personalizarse.
 
-Verificación: miniatura interna, expansión/cierre y conservación de borrador comprobados con API de prueba. La ventana externa debe probarse en un navegador de escritorio compatible; el navegador integrado de la revisión no la mantuvo abierta.
-
-Referencia: https://developer.chrome.com/docs/web-platform/document-picture-in-picture
+Estado actualizado de integración: [backend-pendiente.md](docs/backend-pendiente.md).

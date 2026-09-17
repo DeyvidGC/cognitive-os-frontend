@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CaptureState, ScreenCapture } from "./screenCapture";
@@ -42,7 +42,22 @@ export default function FloatingAgent({ capture, state, children }: {
     target?.append(conversationHost);
   }, [conversationHost, floating, pip]);
 
-  async function open() {
+  const autoOpen = useEffectEvent(() => { void open(true); });
+  const autoClose = useEffectEvent(() => { close(); });
+  useEffect(() => {
+    let previous = capture.getSnapshot().stream;
+    return capture.subscribe(() => {
+      const next = capture.getSnapshot();
+      if (next.stream && !previous) autoOpen();
+      if (!next.stream && previous) autoClose();
+      previous = next.stream;
+    });
+  }, [capture]);
+  useEffect(() => {
+    if (pip && !pip.closed) pip.resizeTo(420, expanded ? 620 : 190);
+  }, [pip, expanded]);
+
+  async function open(automatic = false) {
     setNotice("");
     setFloating(true);
     const api = (window as PipWindow).documentPictureInPicture;
@@ -56,8 +71,8 @@ export default function FloatingAgent({ capture, state, children }: {
     }
     setOpening(true);
     try {
-      const next = await api.requestWindow({ width: 380, height: 520 });
-      if (!alive.current) { next.close(); return; }
+      const next = await api.requestWindow({ width: 420, height: 190 });
+      if (!alive.current || (automatic && !capture.getSnapshot().stream)) { next.close(); return; }
       ownedWindow.current = next;
       next.document.title = "Cognitive · Tu agente";
       const base = next.document.createElement("base");
@@ -72,7 +87,7 @@ export default function FloatingAgent({ capture, state, children }: {
         // Preserve the mounted conversation and unsent text when its window closes.
         inlineHost.current?.append(conversationHost);
         ownedWindow.current = null;
-        if (alive.current) { setPip(null); setFloating(false); }
+        if (alive.current) { setPip(null); setFloating(!!capture.getSnapshot().stream); }
       }, { once: true });
       setPip(next);
     } catch {
@@ -88,9 +103,9 @@ export default function FloatingAgent({ capture, state, children }: {
     setFloating(false);
   }
   const panel = (
-    <section className={`floating-agent ${pip ? "is-external" : "is-docked"}`} aria-label="Miniatura del agente">
+    <section className={`floating-agent ${expanded ? "is-expanded" : "is-compact"} ${pip ? "is-external" : "is-docked"}`} aria-label="Miniatura del agente">
       <header className="floating-agent-header">
-        <span>COGNITIVE · ASISTENTE</span>
+        <span>COGNITIVE · HERRAMIENTAS</span>
         <div>
           <button type="button" title={expanded ? "Minimizar conversación" : "Abrir conversación"} aria-label={expanded ? "Minimizar conversación" : "Abrir conversación"} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "−" : "+"}</button>
           <button type="button" title="Cerrar miniatura (la grabación continúa)" aria-label="Cerrar miniatura" onClick={close}>×</button>
@@ -105,7 +120,7 @@ export default function FloatingAgent({ capture, state, children }: {
           <path d="M37 49v6m26-6v6M43 60h14" stroke="#306452" strokeWidth="4" strokeLinecap="round" />
           <circle cx="50" cy="83" r="3" fill="#78a78b" />
         </svg>
-        <h3>Tu compañero de aprendizaje</h3>
+        <h3>Cognitive</h3>
         <p>{phase === "recording" ? "Grabando tu proceso" : phase === "paused" ? "Grabación en pausa" : active ? "Pantalla compartida" : "Listo para acompañarte"} <span>· {formatDuration(state.seconds)}</span></p>
       </div>
       <div className="floating-agent-controls">
@@ -117,7 +132,7 @@ export default function FloatingAgent({ capture, state, children }: {
         {phase === "paused" && <button type="button" onClick={() => capture.resume()}><Icon name="play" />Reanudar</button>}
         {active && <button type="button" disabled={phase === "stopping"} onClick={() => capture.stop()}><Icon name="stop" />Detener</button>}
       </div>
-      <p className="floating-agent-help">{microphone === "on" ? "Tu voz se incluye en el video." : "Activa el micrófono antes de empezar a grabar."} El agente analizará el video después de guardarlo.</p>
+      <p hidden={!expanded} className="floating-agent-help">{microphone === "on" ? "Tu voz se incluye en el video." : "Activa el micrófono antes de empezar a grabar."} El micrófono se graba en el video; no es una llamada de voz con el agente.</p>
       {state.error && <p role="alert" className="floating-agent-error">{state.error}</p>}
       <button type="button" className="floating-chat-toggle" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Ocultar conversación" : "Conversación y preguntas"}<span>{expanded ? "−" : "+"}</span></button>
       <div ref={miniHost} hidden={!expanded} className="floating-conversation" />
@@ -126,7 +141,7 @@ export default function FloatingAgent({ capture, state, children }: {
   return (
     <div className="agent-floating-workspace">
       <button type="button" className="secondary floating-launch" disabled={opening} onClick={() => void open()}><Icon name="share" size={17} />{opening ? "Abriendo…" : floating ? "Mostrar miniatura" : "Abrir agente en miniatura"}</button>
-      <p className="floating-launch-hint">Ábrelo antes de cambiar de ventana para tener los controles a mano. Mantén esta sesión abierta.</p>
+
       {!floating && <button type="button" className="text-button" onClick={() => { setFloating(true); setNotice(""); }}>Usar miniatura dentro de esta página</button>}
       {notice && <p role="status" className="floating-agent-help">{notice}</p>}
       <div ref={inlineHost} hidden={floating} />

@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 23px;
+  font-size: 24px;
   font-weight: 650;
   letter-spacing: -1.1px;
   padding: 0 12px;
@@ -34,7 +34,7 @@
   box-shadow: inset 0 0 0 1px #ffffff20;
 }
 .brand-os {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.3px;
   margin-left: -4px;
   color: #5c7c6f;
@@ -64,13 +64,13 @@
   background: #f1f4e9;
   border-radius: 7px;
   color: #5c6c43;
-  font-size: 15px;
+  font-size: 16px;
 }
 .organization > span:last-child {
   min-width: 0;
 }
 .organization small {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1.1px;
   color: #7c8c83;
 }
@@ -78,12 +78,12 @@
   padding: 3px 0;
   border: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: 0;
 }
 .nav-label {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.6px;
   font-weight: 650;
   color: #95a29b;
@@ -99,7 +99,7 @@
   padding: 13px 13px;
   margin-bottom: 5px;
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   color: #687b71;
   font-weight: 500;
@@ -117,7 +117,7 @@
   background: #d7e9dd;
   border-radius: 4px;
   padding: 1px 5px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -136,11 +136,11 @@
 }
 .tip strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .tip p {
-  font-size: 11px;
+  font-size: 12px;
   color: #7a8875;
   margin-top: 6px;
   line-height: 1.8;
@@ -159,7 +159,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 12px;
   color: #607651;
   flex-shrink: 0;
 }
@@ -175,13 +175,13 @@
   white-space: nowrap;
 }
 .profile strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .profile small {
   color: #91a093;
   margin-top: 3px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .main-shell {
   margin-left: 252px;
@@ -196,7 +196,7 @@
   justify-content: space-between;
   padding: 0 40px;
   background: #ffffffc9;
-  font-size: 11px;
+  font-size: 12px;
   color: #829088;
 }
 .topbar strong {
@@ -211,7 +211,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .status-dot {
   display: inline-block;
@@ -235,7 +235,7 @@ main {
 }
 .eyebrow {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.7px;
   color: #7c9083;
   font-weight: 650;
@@ -243,7 +243,7 @@ main {
 }
 .page-heading p {
   color: #8a978e;
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 8px;
 }
 .heading-dot {
@@ -257,7 +257,7 @@ main {
   gap: 9px;
   border-radius: 7px;
   padding: 12px 17px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   white-space: nowrap;
 }
@@ -290,7 +290,7 @@ main {
   background: transparent;
   padding: 0;
   color: #39775b;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .text-button:hover {
@@ -324,24 +324,24 @@ main {
 }
 .welcome-banner .eyebrow {
   color: #68805c;
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1.5px;
 }
 .welcome-banner h2 {
-  font-size: 27px;
+  font-size: 28px;
   line-height: 1.4;
   color: #324e36;
   letter-spacing: -0.8px;
 }
 .welcome-banner p {
-  font-size: 11px;
+  font-size: 12px;
   color: #829077;
   margin-top: 10px;
 }
 .banner-link {
   margin-top: 20px;
   color: #456b40;
-  font-size: 11px;
+  font-size: 12px;
 }
 .flow-art {
   position: relative;
@@ -406,7 +406,7 @@ main {
   transform: rotate(5deg);
 }
 .flow-node small {
-  font-size: 11px;
+  font-size: 12px;
   color: #5d7251;
 }
 .flow-dot {
@@ -439,13 +439,13 @@ main {
   position: relative;
 }
 .stat p {
-  font-size: 11px;
+  font-size: 12px;
   color: #7e8e82;
 }
 .stat strong {
   display: block;
   font-family: Manrope, sans-serif;
-  font-size: 32px;
+  font-size: 33px;
   font-weight: 650;
   margin: 10px 0 5px;
   line-height: 1.2;
@@ -453,7 +453,7 @@ main {
 }
 .stat small {
   color: #91a08e;
-  font-size: 10px;
+  font-size: 11px;
 }
 .stat-icon {
   position: absolute;
@@ -482,12 +482,12 @@ main {
   padding: 22px 24px;
 }
 .section-heading h2 {
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: -0.2px;
 }
 .section-heading p {
   color: #92a08f;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 5px;
 }
 .table-wrap {
@@ -497,12 +497,12 @@ table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
 }
 th {
   background: #fafbf9;
   border-block: 1px solid #eaf0e9;
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1px;
   font-weight: 500;
   color: #8d9d8c;
@@ -528,7 +528,7 @@ tr:last-child td {
   background: none;
   padding: 0;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   color: #3f5745;
   font-weight: 500;
   max-width: 360px;
@@ -550,13 +550,13 @@ tr:last-child td {
 }
 .date-cell {
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
 }
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
   border: 1px solid #e4e9e2;
   background: #f3f6f1;
@@ -628,11 +628,11 @@ tr:last-child td {
   margin-bottom: 16px;
 }
 .procedure-card h3 {
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .procedure-card p {
-  font-size: 10px;
+  font-size: 11px;
   color: #8a9784;
   margin-top: 8px;
   display: -webkit-box;
@@ -647,7 +647,7 @@ tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 10px;
   color: #9aa48f;
 }
 .page-footer {
@@ -655,7 +655,7 @@ tr:last-child td {
   justify-content: space-between;
   align-items: center;
   color: #a0ad9b;
-  font-size: 9px;
+  font-size: 10px;
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid #e6ece2;
@@ -680,18 +680,18 @@ tr:last-child td {
   margin-bottom: 12px;
 }
 .empty h3 {
-  font-size: 13px;
+  font-size: 14px;
   color: #6b7e63;
 }
 .empty p {
-  font-size: 11px;
+  font-size: 12px;
   color: #99a58f;
   max-width: 380px;
   margin: 6px auto 0;
 }
 .filter {
   max-width: 250px;
-  font-size: 11px;
+  font-size: 12px;
   padding: 9px 11px;
 }
 .error,
@@ -699,7 +699,7 @@ tr:last-child td {
 .success {
   padding: 13px 17px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 18px;
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -738,7 +738,7 @@ tr:last-child td {
   margin-bottom: 20px;
 }
 .search-panel > p {
-  font-size: 12px;
+  font-size: 13px;
   color: #8c9c81;
   margin-top: 9px;
 }
@@ -765,7 +765,7 @@ tr:last-child td {
 }
 .search-results p {
   white-space: pre-wrap;
-  font-size: 12px;
+  font-size: 13px;
   color: #7b8c70;
   margin-bottom: 14px;
 }
@@ -773,7 +773,7 @@ tr:last-child td {
   margin-bottom: 25px;
 }
 .detail-title {
-  font-size: 28px;
+  font-size: 29px;
   overflow-wrap: anywhere;
 }
 .detail-grid {
@@ -805,14 +805,14 @@ tr:last-child td {
 }
 .timeline p,
 .steps p {
-  font-size: 12px;
+  font-size: 13px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .timeline small,
 .steps small {
   color: #91a184;
-  font-size: 10px;
+  font-size: 11px;
 }
 .timeline p {
   margin-top: 6px;
@@ -838,7 +838,7 @@ tr:last-child td {
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .note-form {
@@ -846,14 +846,14 @@ tr:last-child td {
   border-top: 1px solid #edf1e8;
 }
 .count {
-  font-size: 10px;
+  font-size: 11px;
   background: #f1f5eb;
   color: #839674;
   border-radius: 5px;
   padding: 4px 7px;
 }
 .muted {
-  font-size: 11px;
+  font-size: 12px;
   color: #98a58d;
 }
 .inset {
@@ -871,13 +871,13 @@ tr:last-child td {
   color: #718760;
 }
 .upload-label input {
-  font-size: 10px;
+  font-size: 11px;
   padding: 7px;
   background: white;
 }
 .upload-area small {
   color: #97a18b;
-  font-size: 9px;
+  font-size: 10px;
 }
 .questions {
   padding: 22px;
@@ -888,7 +888,7 @@ tr:last-child td {
   margin-bottom: 18px;
 }
 .questions article > p {
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 8px;
   color: #7d8e72;
   white-space: pre-wrap;
@@ -907,14 +907,14 @@ tr:last-child td {
   padding: 15px 20px;
   text-align: left;
   color: #668056;
-  font-size: 11px;
+  font-size: 12px;
 }
 .evidence-row > span:nth-child(2) {
   flex: 1;
 }
 .evidence-row small {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   color: #97a58a;
   margin-top: 4px;
 }
@@ -936,7 +936,7 @@ tr:last-child td {
 }
 .version-bar select {
   width: 150px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .editor-actions {
   display: flex;
@@ -947,7 +947,7 @@ tr:last-child td {
 }
 .editor-actions > p {
   color: #849876;
-  font-size: 12px;
+  font-size: 13px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -963,21 +963,21 @@ tr:last-child td {
 .markdown-editor {
   min-height: 320px;
   font-family: Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
 }
 .editor-hint {
-  font-size: 10px;
+  font-size: 11px;
   color: #96a589;
   margin-top: 20px;
 }
 .unsaved {
   display: inline-block;
-  font-size: 10px;
+  font-size: 11px;
   color: #ab8d50;
   margin-left: 10px;
 }
 .tutorial-content {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .auth-layout {
@@ -1005,7 +1005,7 @@ tr:last-child td {
   color: #7d936e;
 }
 .auth-message h1 {
-  font-size: 39px;
+  font-size: 40px;
   line-height: 1.45;
   letter-spacing: -1.6px;
   font-weight: 600;
@@ -1019,12 +1019,12 @@ tr:last-child td {
   max-width: 385px;
   margin-top: 23px;
   color: #86967a;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
 }
 .auth-story > small {
   color: #93a085;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 25px;
 }
 .orbit-art {
@@ -1070,7 +1070,7 @@ tr:last-child td {
   background: #fffef8;
   color: #778d64;
   padding: 15px 19px;
-  font-size: 12px;
+  font-size: 13px;
   position: absolute;
   box-shadow: 0 8px 20px #4a61290b;
 }
@@ -1099,11 +1099,11 @@ tr:last-child td {
   max-width: 360px;
 }
 .auth-form h2 {
-  font-size: 29px;
+  font-size: 30px;
   letter-spacing: -1px;
 }
 .auth-form > div > p {
-  font-size: 12px;
+  font-size: 13px;
   color: #8b9b82;
   margin-top: 12px;
 }
@@ -1116,7 +1116,7 @@ tr:last-child td {
 }
 .auth-form .auth-switch {
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 25px;
 }
 .auth-switch .text-button {
@@ -1130,7 +1130,7 @@ tr:last-child td {
   border-top: 1px solid #e9eee4;
   padding-top: 24px;
   margin-top: 35px;
-  font-size: 9px;
+  font-size: 10px;
   color: #9aa68f;
 }
 .auth-form .error {
@@ -1156,13 +1156,13 @@ dialog::backdrop {
   margin-bottom: 25px;
 }
 .modal-heading h2 {
-  font-size: 19px;
+  font-size: 20px;
 }
 .modal-heading .icon-button {
-  font-size: 24px;
+  font-size: 25px;
 }
 .form-intro {
-  font-size: 12px;
+  font-size: 13px;
   color: #8b9a7e;
   margin-bottom: 23px;
 }
@@ -1170,7 +1170,7 @@ dialog::backdrop {
   flex-direction: row;
   align-items: flex-start;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   color: #7e9171;
   font-weight: 400;
@@ -1196,10 +1196,10 @@ dialog::backdrop {
     padding: 55px 85px;
   }
   .auth-message h1 {
-    font-size: 48px;
+    font-size: 49px;
   }
   .auth-message > p {
-    font-size: 15px;
+    font-size: 16px;
     max-width: 440px;
   }
 }
@@ -1227,7 +1227,7 @@ dialog::backdrop {
     padding: 25px;
   }
   .welcome-banner h2 {
-    font-size: 24px;
+    font-size: 25px;
   }
   .stat {
     padding: 18px;
@@ -1248,7 +1248,7 @@ dialog::backdrop {
     padding: 35px;
   }
   .auth-message h1 {
-    font-size: 32px;
+    font-size: 33px;
   }
   .auth-form {
     padding: 35px;
@@ -1262,7 +1262,7 @@ dialog::backdrop {
     margin-left: 190px;
   }
   .brand {
-    font-size: 20px;
+    font-size: 21px;
     gap: 5px;
     padding-inline: 7px;
   }
@@ -1271,7 +1271,7 @@ dialog::backdrop {
     height: 29px;
   }
   .nav-item {
-    font-size: 10px;
+    font-size: 11px;
     padding: 12px 8px;
     gap: 8px;
   }
@@ -1280,21 +1280,21 @@ dialog::backdrop {
     margin-inline: 0;
   }
   .organization small {
-    font-size: 7px;
+    font-size: 8px;
   }
   .organization select {
-    font-size: 10px;
+    font-size: 11px;
   }
   .workspace-avatar {
     width: 25px;
     height: 28px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .tip {
     padding: 13px 9px;
   }
   .tip strong {
-    font-size: 10px;
+    font-size: 11px;
   }
   main {
     padding: 26px 20px;
@@ -1303,7 +1303,7 @@ dialog::backdrop {
     padding: 0 20px;
   }
   .welcome-banner h2 {
-    font-size: 23px;
+    font-size: 24px;
   }
   .flow-art {
     display: none;
@@ -1318,19 +1318,19 @@ dialog::backdrop {
     display: none;
   }
   .stat p {
-    font-size: 10px;
+    font-size: 11px;
   }
   .stat strong {
-    font-size: 27px;
-  }
-  .stat small {
-    font-size: 8px;
-  }
-  .page-heading h1 {
     font-size: 28px;
   }
+  .stat small {
+    font-size: 9px;
+  }
+  .page-heading h1 {
+    font-size: 29px;
+  }
   .page-heading .primary {
-    font-size: 10px;
+    font-size: 11px;
     padding: 10px;
   }
   .page-heading {
@@ -1358,17 +1358,17 @@ dialog::backdrop {
     padding: 30px 25px;
   }
   .auth-message h1 {
-    font-size: 29px;
+    font-size: 30px;
   }
   .orbit-label {
     padding: 10px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .auth-form {
     padding: 30px;
   }
   .auth-form h2 {
-    font-size: 25px;
+    font-size: 26px;
   }
   .orbit-core {
     left: 35%;
@@ -1388,7 +1388,7 @@ dialog::backdrop {
   }
   .sidebar .brand {
     padding: 0;
-    font-size: 22px;
+    font-size: 23px;
   }
   .organization {
     position: absolute;
@@ -1401,10 +1401,10 @@ dialog::backdrop {
     padding: 8px 0;
   }
   .organization small {
-    font-size: 6px;
+    font-size: 7px;
   }
   .organization select {
-    font-size: 9px;
+    font-size: 10px;
   }
   .organization .workspace-avatar {
     display: none;
@@ -1425,7 +1425,7 @@ dialog::backdrop {
     width: auto;
     margin: 0;
     gap: 6px;
-    font-size: 10px;
+    font-size: 11px;
     padding: 10px;
   }
   .nav-item svg {
@@ -1456,7 +1456,7 @@ dialog::backdrop {
   }
   .topbar {
     height: 47px;
-    font-size: 10px;
+    font-size: 11px;
     padding: 0 19px;
   }
   main {
@@ -1466,13 +1466,13 @@ dialog::backdrop {
     margin-bottom: 24px;
   }
   .eyebrow {
-    font-size: 8px;
+    font-size: 9px;
   }
   .page-heading h1 {
-    font-size: 29px;
+    font-size: 30px;
   }
   .page-heading p {
-    font-size: 11px;
+    font-size: 12px;
   }
   .welcome-banner {
     min-height: 230px;
@@ -1486,21 +1486,21 @@ dialog::backdrop {
     padding: 13px 10px;
   }
   .stat p {
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.5;
     min-height: 28px;
   }
   .stat strong {
-    font-size: 25px;
+    font-size: 26px;
   }
   .stat small {
-    font-size: 8px;
+    font-size: 9px;
   }
   .section-heading h2 {
-    font-size: 14px;
+    font-size: 15px;
   }
   .section-heading .text-button {
-    font-size: 10px;
+    font-size: 11px;
   }
   .section-heading {
     padding: 20px 17px;
@@ -1515,7 +1515,7 @@ dialog::backdrop {
     flex-direction: column;
   }
   .detail-title {
-    font-size: 24px !important;
+    font-size: 25px !important;
   }
   .editor-actions {
     flex-direction: column;
@@ -1532,10 +1532,10 @@ dialog::backdrop {
     padding-top: 36px;
   }
   .auth-message h1 {
-    font-size: 29px;
+    font-size: 30px;
   }
   .auth-message > p {
-    font-size: 12px;
+    font-size: 13px;
     margin-top: 15px;
   }
   .orbit-art,
@@ -1549,13 +1549,13 @@ dialog::backdrop {
     max-width: 420px;
   }
   .auth-form h2 {
-    font-size: 25px;
+    font-size: 26px;
   }
   .auth-foot {
-    font-size: 8px;
+    font-size: 9px;
   }
   .page-footer {
-    font-size: 8px;
+    font-size: 9px;
   }
   .detail-grid {
     gap: 0;
@@ -1570,7 +1570,7 @@ dialog::backdrop {
     width: 115px;
   }
   .version-bar .badge {
-    font-size: 8px;
+    font-size: 9px;
   }
   .profile .icon-button {
     background: #fff;
@@ -1598,11 +1598,11 @@ dialog::backdrop {
     width: 123px;
   }
   .sidebar .brand {
-    font-size: 20px;
+    font-size: 21px;
   }
   .nav-item {
     white-space: normal;
-    font-size: 10px;
+    font-size: 11px;
     width: 100%;
   }
 }

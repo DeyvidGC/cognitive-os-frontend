@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirmAction";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "./api";
 import type { Client, Session } from "./api";
@@ -228,8 +229,10 @@ export default function SessionMedia({
           existing={item}
           onSaved={saved}
           onBusy={setUploadBusy}
-          agentPanel={
+          agentPanel={(capture) =>
             <AgentConversation
+              capture={capture}
+              canAnswer={canManage && session.status !== "processing"}
               api={api}
               session={session}
               writable={writable}
@@ -258,6 +261,7 @@ export default function SessionMedia({
             </p>
           </section>
           <AgentConversation
+            canAnswer={canManage && session.status !== "processing"}
             api={api}
             session={session}
             writable={writable}
@@ -302,9 +306,9 @@ export default function SessionMedia({
                     <button
                       className="primary"
                       disabled={busy || protectedState}
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          window.confirm(
+                          await confirmAction(
                             "Se cerrará la captura y se iniciará el análisis del video. Resuelve las preguntas pendientes antes de continuar. ¿Iniciar análisis?",
                           )
                         )

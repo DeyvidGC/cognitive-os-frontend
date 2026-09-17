@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirmAction";
 import { date, labels, useAction } from "./utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allPages, client, json } from "./api";
@@ -87,10 +88,10 @@ function Workspace({
     protectedRef.current = value;
     setCaptureProtected(value);
   }, []);
-  function canLeaveCapture() {
+  async function canLeaveCapture() {
     return (
       !captureProtected ||
-      window.confirm(
+      await confirmAction(
         "Hay una captura, una subida o correcciones sin guardar. Al salir se detendrá la captura y se perderán los cambios y videos locales sin guardar. ¿Salir de la sesión?",
       )
     );
@@ -126,8 +127,8 @@ function Workspace({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (organization) void refresh();
   }, [organization, refresh]);
-  function navigate(next: Page) {
-    if (!canLeaveCapture()) return;
+  async function navigate(next: Page) {
+    if (!(await canLeaveCapture())) return;
     if (selected) void refresh();
     setPage(next);
     setSelected(null);
@@ -168,8 +169,9 @@ function Workspace({
             <select
               aria-label="Organización"
               value={organization}
-              onChange={(e) => {
-                if (canLeaveCapture()) setOrganization(e.target.value);
+              onChange={async (e) => {
+                const next = e.target.value;
+                if (await canLeaveCapture()) setOrganization(next);
               }}
             >
               {user.memberships.map((m) => (
@@ -223,7 +225,7 @@ function Workspace({
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  if (!canLeaveCapture()) return;
+                  if (!(await canLeaveCapture())) return;
                   if (!accessExpired)
                     await api("/auth/logout", { method: "POST" });
                   logout();
@@ -262,8 +264,8 @@ function Workspace({
             <>
               <button
                 className="text-button back"
-                onClick={() => {
-                  if (!canLeaveCapture()) return;
+                onClick={async () => {
+                  if (!(await canLeaveCapture())) return;
                   setSelected(null);
                   void refresh();
                 }}
@@ -471,7 +473,7 @@ function Workspace({
                                     <td>
                                       <button
                                         className="row-link"
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setSelected(s);
                                           setPage("sessions");
                                         }}
@@ -493,7 +495,7 @@ function Workspace({
                                       <button
                                         className="icon-button"
                                         aria-label={`Abrir ${s.objective}`}
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setSelected(s);
                                           setPage("sessions");
                                         }}
@@ -562,7 +564,7 @@ function Workspace({
                             <button
                               key={p.id}
                               className="procedure-card"
-                              onClick={() => {
+                              onClick={async () => {
                                 setSelected(p);
                                 setPage("procedures");
                               }}
@@ -647,7 +649,7 @@ function Workspace({
                                 <p>{r.content}</p>
                                 <button
                                   className="text-button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     const p = procedures.find(
                                       (p) => p.id === r.procedure_id,
                                     );

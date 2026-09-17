@@ -190,3 +190,24 @@ test("API limits and pre-cancelled transfers are enforced", async () => {
     { name: "AbortError" },
   );
 });
+
+test("audio analysis consent is opt-in and retained on reservation retries", async () => {
+  for (const allowed of [false, true]) {
+    const bodies = [];
+    const api = async (path, options) => {
+      if (path.includes("learning-sessions")) {
+        bodies.push(JSON.parse(options.body));
+        if (bodies.length === 1) throw new Error("connection lost");
+        return reservation;
+      }
+      return { ...reservation, status: "uploaded" };
+    };
+    const upload = new RecordingUpload(api, "s1", blob, undefined, allowed);
+    const send = () => upload.send(() => {}, () => {}, new AbortController().signal);
+    await assert.rejects(send, /connection lost/);
+    await send();
+    assert.equal(bodies[0].audio_consent, allowed);
+    assert.equal(bodies[1].audio_consent, allowed);
+    assert.equal(bodies[0].idempotency_key, bodies[1].idempotency_key);
+  }
+});

@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirmAction";
 import { useEffect, useState } from "react";
 import type { Client } from "./api";
 import { json } from "./api";
@@ -78,10 +79,10 @@ export default function RecordingReport({
           <button
             className="secondary"
             disabled={busy}
-            onClick={() => {
+            onClick={async () => {
               if (
                 !dirty ||
-                window.confirm(
+                await confirmAction(
                   "Se descartarán tus cambios locales para cargar la revisión actual. ¿Continuar?",
                 )
               )
@@ -323,8 +324,7 @@ export default function RecordingReport({
                         ))}
                       </ul>
                       <small>
-                        Son dudas del informe; todavía no se convierten
-                        automáticamente en preguntas de la sesión.
+                        Revisa las preguntas de la sesión para resolver estas dudas antes de aprobar.
                       </small>
                     </div>
                   )
@@ -357,9 +357,9 @@ export default function RecordingReport({
                   <button
                     className="primary"
                     disabled={busy || dirty}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        window.confirm(
+                        await confirmAction(
                           "Un informe aprobado ya no puede editarse. ¿Confirmar aprobación?",
                         )
                       )
@@ -380,8 +380,7 @@ export default function RecordingReport({
             )}
             <div className="connection-note">
               <Icon name="book" size={15} />
-              La publicación como procedimiento es un paso separado. La API aún
-              no convierte este informe en una versión publicable.
+              Aprobar el informe no publica un procedimiento. La conversión y su revisión editorial son pasos separados, pendientes de integrar en esta vista.
             </div>
           </>
         )}

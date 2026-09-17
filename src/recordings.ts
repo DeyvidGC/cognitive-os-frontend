@@ -10,6 +10,8 @@ export type Recording = {
   created_at: string;
   uploaded_at: string | null;
   error_code: string | null;
+  content_sha256?: string | null;
+  audio_consent?: boolean;
 };
 export type RecordingCapabilities = {
   media_types: string[];
@@ -44,19 +46,23 @@ export type ReportContent = {
     instruction: string;
     expected_result: string;
     frame_indices: number[];
+    text_sources?: string[];
   }[];
   uncertainties: string[];
+  questions?: string[];
 };
 export type RecordingReport = {
   recording_id: string;
   revision: number;
   review_status: string;
   feedback: string | null;
+  version_id?: string | null;
   content: ReportContent;
   sampling: {
     duration_ms?: number;
     frame_interval_seconds?: number;
     audio_analyzed?: boolean;
+    text_sources?: string[];
     frames: { index: number; timestamp_ms: number }[];
   };
 };
@@ -152,12 +158,19 @@ export class RecordingUpload {
   private key = crypto.randomUUID();
   private reservation: Recording | null = null;
   private transferred = false;
+  private audioConsent: boolean;
+  private resumable: boolean;
+  private hash = "";
   constructor(
     api: Client,
     sessionId: string,
     blob: Blob,
     existing?: Recording,
+    audioConsent = false,
+    resumable = false,
   ) {
+    this.audioConsent = audioConsent;
+    this.resumable = resumable;
     this.api = api;
     this.sessionId = sessionId;
     this.blob = blob;
@@ -168,6 +181,24 @@ export class RecordingUpload {
     onStage: (stage: string) => void,
     signal: AbortSignal,
   ) {
+    if (this.resumable) {
+      onStage("Comprobando identidad del archivo");
+      if (!this.hash) this.hash = await videoHash(this.blob);
+      signal.throwIfAborted();
+      const storageKey = `cognitive-upload:${this.sessionId}:${this.hash}`;
+      // Persist only the idempotency UUID, never credentials, video or signed URLs.
+      try {
+        const remembered = sessionStorage.getItem(storageKey);
+        if (remembered) this.key = remembered;
+        else sessionStorage.setItem(storageKey, this.key);
+      } catch { /* Recovery also uses the server's session recording list. */ }
+      if (!this.reservation) {
+        const records = await this.api<Recording[]>(`/learning-sessions/${this.sessionId}/recordings`, { signal });
+        this.reservation = records[0] || null;
+      }
+      if (this.reservation?.content_sha256 && this.reservation.content_sha256 !== this.hash)
+        throw new Error("Este archivo no coincide con el video original. Selecciona el mismo archivo para reanudar.");
+    }
     onStage("Reservando espacio");
     if (!this.reservation)
       this.reservation = await this.api<Recording>(
@@ -178,6 +209,8 @@ export class RecordingUpload {
             media_type: this.blob.type.split(";")[0],
             size_bytes: this.blob.size,
             consent: true,
+            audio_consent: this.audioConsent,
+            ...(this.hash ? { content_sha256: this.hash } : {}),
           }),
           signal,
         },
@@ -194,6 +227,33 @@ export class RecordingUpload {
       throw new Error(
         "Selecciona el mismo video con el que comenzaste la subida. El tamaño o el formato no coincide.",
       );
+    if (this.resumable && item.content_sha256) {
+      if (item.content_sha256 !== this.hash) throw new Error("El hash del archivo no coincide con la reserva.");
+      const status = await this.api<UploadStatus>(`/recordings/${item.id}/upload-status`, { signal });
+      if (status.complete) return this.api<Recording>(`/recordings/${item.id}`, { signal });
+      if (status.content_sha256 !== this.hash) throw new Error("No se pudo verificar la identidad del video reservado.");
+      const blocks = [...status.blocks].sort((a, b) => a.index - b.index);
+      if (!blocks.length || blocks.reduce((sum, b) => sum + b.size_bytes, 0) !== this.blob.size || blocks.some((b, i) => b.index !== i || b.size_bytes !== Math.min(status.block_size_bytes, this.blob.size - i * status.block_size_bytes)))
+        throw new Error("El manifiesto de subida no corresponde al archivo.");
+      let completed = blocks.filter((b) => b.uploaded).reduce((sum, b) => sum + b.size_bytes, 0);
+      onProgress(Math.floor(completed / this.blob.size * 100));
+      for (const block of blocks) {
+        if (block.uploaded) continue;
+        signal.throwIfAborted();
+        onStage(`Subiendo bloque ${block.index + 1} de ${blocks.length}`);
+        // Renew authorization for each block so long uploads survive SAS expiry.
+        const signed = await this.api<Transfer>(`/recordings/${item.id}/upload-url`, { method: "POST", signal });
+        const url = new URL(signed.url);
+        url.searchParams.set("comp", "block");
+        url.searchParams.set("blockid", block.id);
+        const headers = Object.fromEntries(Object.entries(signed.headers).filter(([key]) => key.toLowerCase() !== "x-ms-blob-type"));
+        await transferVideo({ ...signed, url: url.href, headers }, this.blob.slice(block.index * status.block_size_bytes, block.index * status.block_size_bytes + block.size_bytes),
+          (percent) => onProgress(Math.floor((completed + block.size_bytes * percent / 100) / this.blob.size * 100)), signal);
+        completed += block.size_bytes;
+      }
+      onStage("Confirmando bloques y guardado");
+      return this.api<Recording>(`/recordings/${item.id}/commit-blocks`, { method: "POST", signal });
+    }
     if (!this.transferred) {
       onStage("Subiendo video");
       const signed = await this.api<Transfer>(
@@ -210,3 +270,12 @@ export class RecordingUpload {
     });
   }
 }
+
+export async function videoHash(blob: Blob) {
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+export type UploadStatus = {
+  complete: boolean; block_size_bytes: number; content_sha256: string;
+  blocks: { id: string; index: number; size_bytes: number; uploaded: boolean }[];
+};

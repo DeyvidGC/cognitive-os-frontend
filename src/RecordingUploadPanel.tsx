@@ -24,6 +24,8 @@ export default function RecordingUploadPanel({
 }) {
   const task = useRef<RecordingUpload | null>(null);
   const controller = useRef<AbortController | null>(null);
+  const [reservationStarted, setReservationStarted] = useState(false);
+  const [audioConsent, setAudioConsent] = useState(false);
   const [consent, setConsent] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("");
@@ -48,7 +50,8 @@ export default function RecordingUploadPanel({
       if (!task.current) {
         const blob = await (await fetch(clip, { signal: abort.signal })).blob();
         validateVideo(blob, capabilities, duration);
-        task.current = new RecordingUpload(api, sessionId, blob, existing);
+        setReservationStarted(true);
+        task.current = new RecordingUpload(api, sessionId, blob, existing, audioConsent, true);
       }
       const recording = await task.current.send(
         setProgress,
@@ -98,6 +101,10 @@ export default function RecordingUploadPanel({
             />
             Autorizo guardar y analizar el video en mi organización.
           </label>
+          {capabilities.audio_supported && <label className="checkbox">
+            <input type="checkbox" checked={audioConsent} disabled={busy || reservationStarted || !!existing} onChange={(event) => setAudioConsent(event.target.checked)} />
+            Autorizo transcribir y analizar la voz incluida en este video.
+          </label>}
           {busy && (
             <div role="status">
               <div className="upload-progress-label">
