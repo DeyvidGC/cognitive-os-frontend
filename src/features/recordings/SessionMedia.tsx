@@ -53,6 +53,7 @@ export default function SessionMedia({
   const [playback, setPlayback] = useState("");
   const [playbackError, setPlaybackError] = useState(false);
   const [externalClip, setExternalClip] = useState("");
+  const [externalTitle, setExternalTitle] = useState("");
   const [captureProtected, setCaptureProtected] = useState(false);
   const [reportDirty, setReportDirty] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -285,6 +286,7 @@ export default function SessionMedia({
                     throw new Error(
                       "El archivo no coincide con el tamaño y formato de la reserva pendiente.",
                     );
+                  setExternalTitle(file.name.slice(0, 200));
                   setExternalClip(URL.createObjectURL(blob));
                 });
               }}
@@ -313,6 +315,8 @@ export default function SessionMedia({
                 api={api}
                 sessionId={session.id}
                 clip={externalClip}
+                origin="upload"
+                title={externalTitle}
                 capabilities={capabilities}
                 existing={item}
                 onSaved={saved}

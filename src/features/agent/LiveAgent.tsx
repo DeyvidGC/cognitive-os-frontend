@@ -17,6 +17,8 @@ type Input = {
   message_id: string;
   text: string;
   image_base64?: string;
+  offset_ms?: number;
+  clarification_id?: string;
 };
 
 export default function LiveAgent({
@@ -45,6 +47,12 @@ export default function LiveAgent({
   const [readQuestions, setReadQuestions] = useState(false);
   const readQuestionsRef = useRef(false);
   const [interruption, setInterruption] = useState("");
+  const [questionId, setQuestionId] = useState<string | null>(null);
+  const [automatic, setAutomatic] = useState(false);
+  const [proactiveSupported, setProactiveSupported] = useState(false);
+  const [observationInterval, setObservationInterval] = useState(15000);
+  const sending = useRef(false);
+  const autoSend = useRef<() => void>(() => {});
   const socket = useRef<WebSocket | null>(null);
   const pending = useRef<Input | null>(null);
   const minInterval = useRef(3000);
@@ -76,6 +84,27 @@ export default function LiveAgent({
       active = false;
     };
   }, [api, sessionId, historyKey]);
+  useEffect(() => {
+    let active = true;
+    api<{ id: string; question: string; answer: string | null }[]>(`/learning-sessions/${sessionId}/clarifications`)
+      .then((items) => {
+        if (!active) return;
+        const next = items.find((item) => !item.answer);
+        setQuestionId(next?.id || null);
+        setInterruption(next?.question || "");
+      }).catch(() => { if (active) setError("No se pudieron recuperar las preguntas pendientes."); });
+    return () => { active = false; };
+  }, [api, sessionId, historyKey]);
+  useEffect(() => {
+    autoSend.current = () => {
+      if (!busy && !retry && !questionId && !text.trim() && capture?.phase === "recording") void send(true, false, true);
+    };
+  });
+  useEffect(() => {
+    if (!automatic || !proactiveSupported || !connected || !consent || !canSend) return;
+    const timer = setInterval(() => autoSend.current(), observationInterval);
+    return () => clearInterval(timer);
+  }, [automatic, proactiveSupported, connected, consent, canSend, observationInterval]);
   useEffect(
     () => () => {
       generation.current++;
@@ -114,6 +143,7 @@ export default function LiveAgent({
     disconnect();
     setError("");
     setStatus("Conectando…");
+    const connectionGeneration = generation.current;
     const ws = api.agentSocket(sessionId);
     socket.current = ws;
     timeout.current = setTimeout(() => {
@@ -123,7 +153,7 @@ export default function LiveAgent({
       }
     }, 20000);
     ws.onmessage = (event) => {
-      if (socket.current !== ws) return;
+      if (socket.current !== ws || generation.current !== connectionGeneration) return;
       try {
         const result = JSON.parse(event.data);
         if (result.type === "ready") {
@@ -132,14 +162,20 @@ export default function LiveAgent({
             1000,
             Number(result.min_interval_seconds || 3) * 1000,
           );
+          setProactiveSupported(result.proactive_questions === true);
+          setObservationInterval(Math.max(15000, Number(result.observation_interval_seconds || 15) * 1000));
           setConnected(true);
+          setHistoryKey((value) => value + 1);
           setStatus("Agente conectado");
         } else if (result.type === "processing") {
           setStatus("El agente está analizando…");
         } else if (result.type === "reply") {
           clearTimeout(timeout.current);
           const input = pending.current;
-          const question = result.reply?.questions?.join(" ");
+          const clarification = result.reply?.clarifications?.[0];
+          const question = clarification?.question || result.reply?.questions?.join(" ");
+          if (input?.clarification_id) { setQuestionId(null); setInterruption(""); }
+          if (clarification) setQuestionId(clarification.clarification_id);
           if (question) {
             setInterruption(question);
             if (readQuestionsRef.current && window.speechSynthesis) {
@@ -161,7 +197,7 @@ export default function LiveAgent({
           pending.current = null;
           setRetry(false);
           setBusy(false);
-          setText("");
+          if (input?.text) setText("");
           setStatus("Agente conectado");
           void onReply().catch(() =>
             setError(
@@ -203,16 +239,20 @@ export default function LiveAgent({
         );
     };
   }
-  async function send(withImage: boolean, repeat = false) {
+  async function send(withImage: boolean, repeat = false, auto = false) {
     if (
       !canSend ||
+      !consent ||
       !connected ||
+      sending.current ||
       busy ||
       Date.now() - lastSent.current < minInterval.current
     )
       return;
+    sending.current = true;
     setBusy(true);
     setError("");
+    if (!withImage) window.speechSynthesis?.cancel();
     const currentGeneration = generation.current;
     try {
       let input = repeat ? pending.current : null;
@@ -220,7 +260,9 @@ export default function LiveAgent({
         input = {
           type: withImage ? "observe" : "message",
           message_id: crypto.randomUUID(),
-          text: text.trim(),
+          text: auto ? "" : text.trim(),
+          offset_ms: Math.min(1800000, Math.round((capture?.seconds || 0) * 1000)),
+          ...(!withImage && questionId ? { clarification_id: questionId } : {}),
         };
         if (withImage) {
           if (!capture?.stream)
@@ -258,15 +300,14 @@ export default function LiveAgent({
     } catch (e) {
       setBusy(false);
       setError(e instanceof Error ? e.message : "No se pudo enviar el turno.");
-    }
+    } finally { sending.current = false; }
   }
   return (
     <section className="live-agent">
       <h4>Agente en vivo</h4>
       <p role="status">{status}</p>
       <p className="connection-note">
-        Envía texto o una captura puntual. La voz se analiza con el video
-        guardado.
+        Conversa por texto o dictado. Puedes autorizar capturas periódicas durante la grabación para que el agente detecte dudas.
       </p>
       <ErrorNotice error={error} />
       {interruption && (
@@ -301,9 +342,7 @@ export default function LiveAgent({
             Leer en voz alta las preguntas recibidas
           </label>
           <small>
-            El agente pregunta al recibir un mensaje o una captura. La
-            observación continua y las interrupciones autónomas aún requieren
-            soporte del servidor.
+            Las preguntas se guardan como aclaraciones. Puedes responder aquí por texto o dictado y confirmar el envío.
           </small>
           {!capture?.stream && (
             <p className="connection-note">
@@ -323,8 +362,12 @@ export default function LiveAgent({
                 }
               }}
             />
-            Autorizo enviar mis mensajes y las capturas que seleccione al
-            agente.
+            Autorizo enviar mis mensajes y capturas al agente, incluidas las periódicas si activo esa opción.
+          </label>
+          <label className="checkbox">
+            <input type="checkbox" checked={automatic} disabled={!connected || !proactiveSupported}
+              onChange={(event) => setAutomatic(event.target.checked)} />
+            Observar mientras grabo y preguntar si hay dudas (cada {observationInterval / 1000} segundos)
           </label>
           <div className="button-group">
             <button
@@ -392,7 +435,7 @@ export default function LiveAgent({
               }
               onClick={() => void send(false)}
             >
-              Enviar mensaje
+              {questionId ? "Responder aclaración" : "Enviar mensaje"}
             </button>
             <button
               className="secondary"

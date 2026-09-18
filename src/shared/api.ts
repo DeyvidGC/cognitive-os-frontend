@@ -12,6 +12,7 @@ export type User = {
 export type Session = {
   id: string;
   author_id: string;
+  procedure_id?: string | null;
   objective: string;
   application_name: string;
   status: string;

@@ -12,6 +12,8 @@ export default function RecordingUploadPanel({
   duration,
   onSaved,
   onBusy,
+  origin = "screen_capture",
+  title = "",
 }: {
   api: Client;
   sessionId: string;
@@ -19,6 +21,8 @@ export default function RecordingUploadPanel({
   capabilities: RecordingCapabilities;
   existing?: Recording;
   duration?: number;
+  origin?: "screen_capture" | "upload";
+  title?: string;
   onSaved: (recording: Recording) => void;
   onBusy: (busy: boolean) => void;
 }) {
@@ -60,6 +64,7 @@ export default function RecordingUploadPanel({
           existing,
           audioConsent,
           true,
+          { origin, title },
         );
       }
       const recording = await task.current.send(

@@ -754,6 +754,7 @@ function Workspace({
                     json({
                       objective: f.get("objective"),
                       application_name: f.get("application_name"),
+                      procedure_id: f.get("procedure_id") || null,
                       consent: f.get("consent") === "on",
                     }),
                   );
@@ -795,6 +796,14 @@ function Workspace({
                       required
                       maxLength={200}
                     />
+                  </label>
+                  <label>
+                    Proceso que estás actualizando
+                    <select name="procedure_id" defaultValue={selected && "objective" in selected ? selected.procedure_id || "" : ""}>
+                      <option value="">Nuevo proceso</option>
+                      {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.title}</option>)}
+                    </select>
+                    <small>El análisis aprobado generará una nueva versión en borrador y conservará las anteriores.</small>
                   </label>
                   <label className="checkbox">
                     <input type="checkbox" name="consent" required />

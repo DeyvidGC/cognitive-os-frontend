@@ -20,51 +20,29 @@ export default function VideoHistory({
   const [failed, setFailed] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    async function load() {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ limit: "25", query });
+    if (cursor) params.set("cursor", cursor);
+    const timer = setTimeout(() => {
       setLoading(true);
-      const results: { session: Session; video: Recording }[] = [];
-      let failures = 0;
-      // Bound concurrency until the API offers an organization-wide paginated history.
-      for (let offset = 0; offset < sessions.length && active; offset += 4) {
-        const batch = sessions.slice(offset, offset + 4);
-        const responses = await Promise.allSettled(
-          batch.map((session) =>
-            api<Recording[]>(`/learning-sessions/${session.id}/recordings`),
-          ),
-        );
-        responses.forEach((response, index) => {
-          if (response.status === "fulfilled")
-            results.push(
-              ...response.value.map((video) => ({
-                session: batch[index],
-                video,
-              })),
-            );
-          else failures++;
-        });
-      }
-      if (active) {
-        setItems(
-          results.sort((a, b) =>
-            b.video.created_at.localeCompare(a.video.created_at),
-          ),
-        );
-        setFailed(failures);
-        setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [api, sessions, refresh]);
-  const filtered = items.filter(({ session }) =>
-    `${session.objective} ${session.application_name}`
-      .toLocaleLowerCase()
-      .includes(query.toLocaleLowerCase()),
-  );
+      api<{ items: (Recording & { session: Session })[]; next_cursor: string | null }>(`/recordings?${params}`, { signal: controller.signal })
+        .then((page) => {
+          if (!active) return;
+          const rows = page.items.map((video) => ({ session: video.session, video }));
+          setItems((previous) => cursor ? [...previous, ...rows.filter((row) => !previous.some((p) => p.video.id === row.video.id))] : rows);
+          setNextCursor(page.next_cursor);
+          setFailed(0);
+        })
+        .catch(() => { if (active) setFailed(1); })
+        .finally(() => { if (active) setLoading(false); });
+    }, 200);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [api, sessions, refresh, query, cursor]);
+  const filtered = items;
   return (
     <section className="panel video-history">
       <div className="section-heading">
@@ -79,7 +57,7 @@ export default function VideoHistory({
           type="button"
           className="secondary"
           disabled={loading}
-          onClick={() => setRefresh((key) => key + 1)}
+          onClick={() => { setCursor(null); setRefresh((key) => key + 1); }}
         >
           Actualizar
         </button>
@@ -88,7 +66,7 @@ export default function VideoHistory({
         Buscar por proceso o aplicación
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setCursor(null); setItems([]); setQuery(event.target.value); }}
           placeholder="Buscar en el historial"
         />
       </label>
@@ -98,8 +76,7 @@ export default function VideoHistory({
         <>
           {failed > 0 && (
             <p role="alert" className="info">
-              No se pudieron consultar {failed} sesiones. El historial está
-              incompleto; puedes reintentar.
+              No se pudo consultar el historial. Puedes reintentar con Actualizar.
             </p>
           )}
           <div className="video-history-grid">
@@ -124,7 +101,8 @@ export default function VideoHistory({
               </button>
             ))}
           </div>
-          {!filtered.length && (
+          {nextCursor && <button type="button" className="secondary" disabled={loading} onClick={() => setCursor(nextCursor)}>Cargar más videos</button>}
+          {!filtered.length && !failed && (
             <p>
               {query
                 ? "No hay videos que coincidan con tu búsqueda."

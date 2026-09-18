@@ -4,6 +4,8 @@ export type Recording = {
   id: string;
   session_id: string;
   media_type: string;
+  title?: string;
+  origin?: "screen_capture" | "upload";
   size_bytes: number;
   status:
     "uploading" | "uploaded" | "queued" | "processing" | "ready" | "failed";
@@ -182,6 +184,7 @@ export class RecordingUpload {
     existing?: Recording,
     audioConsent = false,
     resumable = false,
+    private metadata: { title?: string; origin?: "screen_capture" | "upload" } = {},
   ) {
     this.audioConsent = audioConsent;
     this.resumable = resumable;
@@ -234,6 +237,7 @@ export class RecordingUpload {
             size_bytes: this.blob.size,
             consent: true,
             audio_consent: this.audioConsent,
+            ...this.metadata,
             ...(this.hash ? { content_sha256: this.hash } : {}),
           }),
           signal,
