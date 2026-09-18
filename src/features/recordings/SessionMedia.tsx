@@ -201,29 +201,54 @@ export default function SessionMedia({
   }
   return (
     <div className="session-media">
-      <div className={`connection-bar ${connection}`} role="status">
-        <span>
+      {/*
+        Estado y límites en una sola línea. El detalle técnico (sincronización,
+        tamaños, formato) vive dentro del desplegable: hace falta al depurar,
+        no mientras alguien enseña un proceso.
+      */}
+      <details className={`session-status ${connection}`}>
+        <summary>
           <i />
-          {connection === "online"
-            ? "API conectada"
-            : connection === "loading"
-              ? "Conectando con tu espacio…"
-              : connection === "missing"
-                ? "Grabaciones no disponibles en esta API"
-                : "Conexión interrumpida"}
-        </span>
-        <small>
-          {lastSync
-            ? `Última sincronización: ${lastSync}`
-            : "Comprobando disponibilidad"}
-        </small>
-        <button
-          className="text-button"
-          onClick={() => setRefresh((key) => key + 1)}
-        >
-          Reconectar / actualizar
-        </button>
-      </div>
+          <span>
+            {connection === "online"
+              ? "API conectada"
+              : connection === "loading"
+                ? "Conectando con tu espacio…"
+                : connection === "missing"
+                  ? "Grabaciones no disponibles en esta API"
+                  : "Conexión interrumpida"}
+          </span>
+          <small>Ver detalles</small>
+        </summary>
+        <div className="session-status-body">
+          <p>
+            {lastSync
+              ? `Última sincronización: ${lastSync}`
+              : "Comprobando disponibilidad"}
+          </p>
+          {capabilities && (
+            <ul>
+              <li>
+                {Math.floor(capabilities.max_seconds / 60)} min por video
+              </li>
+              <li>{Math.floor(capabilities.max_bytes / 1048576)} MB máximo</li>
+              <li>
+                {capabilities.max_recordings_per_session} video por sesión
+              </li>
+              <li>
+                Análisis posterior · audio{" "}
+                {capabilities.audio_supported ? "compatible" : "no analizado"}
+              </li>
+            </ul>
+          )}
+          <button
+            className="text-button"
+            onClick={() => setRefresh((key) => key + 1)}
+          >
+            Reconectar / actualizar
+          </button>
+        </div>
+      </details>
       {connectionError && (
         <div className="info">
           {connectionError}{" "}

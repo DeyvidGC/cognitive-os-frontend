@@ -88,12 +88,12 @@ export default function ScreenStudio({
       className="screen-studio"
       aria-label="Pantalla y agente de aprendizaje"
     >
+      {/*
+        La cabecera sólo lleva lo que cambia durante la captura. El texto que
+        explicaba el propósito de la pantalla vivía aquí y se leía una vez.
+      */}
       <div className="studio-heading">
-        <div>
-          <span className="eyebrow">APRENDER VIENDO CÓMO LO HACES</span>
-          <h2>Tu pantalla, el punto de partida.</h2>
-          <p>Comparte un proceso y documenta cada paso de tu experiencia.</p>
-        </div>
+        <h2>Pantalla de la sesión</h2>
         <span className="studio-phase">
           <i className={phase === "recording" ? "recording-dot" : ""} />
           {status}

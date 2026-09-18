@@ -205,13 +205,6 @@ function Workspace({
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="tip">
-            <span className="tip-icon">
-              <Icon name="spark" />
-            </span>
-            <strong>El conocimiento se construye.</strong>
-            <p>Captura un proceso hoy. Hazlo parte de tu equipo mañana.</p>
-          </div>
           <div className="profile">
             <span className="avatar">
               {user.display_name.slice(0, 2).toUpperCase()}
@@ -355,75 +348,57 @@ function Workspace({
               )}
               {page === "overview" && (
                 <>
-                  <section className="welcome-banner">
-                    <div>
-                      <span className="eyebrow">
-                        DE LA EXPERIENCIA AL CONOCIMIENTO
-                      </span>
-                      <h2>
-                        Tu próxima gran guía
-                        <br />
-                        empieza con una sesión.
-                      </h2>
-                      <p>
-                        Documenta cómo lo haces. Dale a tu equipo
-                        <br className="desktop-break" /> el conocimiento para
-                        hacerlo también.
-                      </p>
-                      <button
-                        className="banner-link"
-                        onClick={() =>
-                          canWrite
-                            ? setModal("session")
-                            : navigate("procedures")
-                        }
-                      >
-                        {canWrite
-                          ? "Capturar un proceso"
-                          : "Explorar procedimientos"}
-                        <Icon name="arrow" size={18} />
-                      </button>
-                    </div>
-                    <div className="flow-art" aria-hidden="true">
-                      <div className="flow-orbit" />
-                      <span className="flow-node capture">
-                        <Icon name="record" size={26} />
-                        <small>Captura</small>
-                      </span>
-                      <span className="flow-center">
-                        <Icon name="spark" size={38} />
-                      </span>
-                      <span className="flow-node knowledge">
-                        <Icon name="book" size={26} />
-                        <small>Conocimiento</small>
-                      </span>
-                      <span className="flow-dot one" />
-                      <span className="flow-dot two" />
-                    </div>
-                  </section>
                   <section className="stats">
-                    {[
-                      {
-                        label: "Sesiones de aprendizaje",
-                        value:
-                          membership.role === "reader" ? "—" : sessions.length,
-                        icon: "record",
-                        foot: "Experiencia documentada",
-                      },
-                      {
-                        label: "Procedimientos",
-                        value: procedures.length,
-                        icon: "book",
-                        foot: "En tu biblioteca",
-                      },
-                      {
-                        label: "Sesiones en captura",
-                        value: membership.role === "reader" ? "—" : active,
-                        icon: "clock",
-                        foot: "Listas para continuar",
-                      },
-                    ].map((s) => (
-                      <article className="stat" key={s.label}>
+                    {(() => {
+                      /*
+                        Las cifras salen sólo de lo que la API devuelve hoy en
+                        los listados. Lo primero es lo accionable: qué sesión
+                        espera que la persona vuelva.
+                      */
+                      const reader = membership.role === "reader";
+                      const count = (...st: string[]) =>
+                        sessions.filter((s) => st.includes(s.status)).length;
+                      const analyzing = count(
+                        "processing",
+                        "queued",
+                        "uploading",
+                      );
+                      const documentable = count("ready", "completed");
+                      return [
+                        {
+                          label: "En captura",
+                          value: reader ? "—" : active,
+                          icon: "record",
+                          foot: "Continúa donde lo dejaste",
+                          attention: !reader && active > 0,
+                        },
+                        {
+                          label: "Analizando",
+                          value: reader ? "—" : analyzing,
+                          icon: "clock",
+                          foot: "El análisis va en camino",
+                          attention: false,
+                        },
+                        {
+                          label: "Listas para documentar",
+                          value: reader ? "—" : documentable,
+                          icon: "check",
+                          foot: "Conviértelas en procedimiento",
+                          attention: !reader && documentable > 0,
+                        },
+                        {
+                          label: "En la biblioteca",
+                          value: procedures.length,
+                          icon: "book",
+                          foot: "Procedimientos del equipo",
+                          attention: false,
+                        },
+                      ];
+                    })().map((s) => (
+                      <article
+                        className={s.attention ? "stat attention" : "stat"}
+                        key={s.label}
+                      >
                         <span className="stat-icon">
                           <Icon name={s.icon} />
                         </span>
