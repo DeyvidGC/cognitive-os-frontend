@@ -68,12 +68,12 @@ export default function ScreenStudio({
       className="screen-studio"
       aria-label="Pantalla y agente de aprendizaje"
     >
+      {/*
+        La cabecera sólo lleva lo que cambia durante la captura. El texto que
+        explicaba el propósito de la pantalla vivía aquí y se leía una vez.
+      */}
       <div className="studio-heading">
-        <div>
-          <span className="eyebrow">APRENDER VIENDO CÓMO LO HACES</span>
-          <h2>Tu pantalla, el punto de partida.</h2>
-          <p>Comparte un proceso y documenta cada paso de tu experiencia.</p>
-        </div>
+        <h2>Pantalla de la sesión</h2>
         <span className="studio-phase">
           <i className={phase === "recording" ? "recording-dot" : ""} />
           {status}
@@ -294,17 +294,18 @@ export default function ScreenStudio({
           onBusy={onBusy}
         />
       ) : (
-        <div className="recording-storage">
-          <Icon name="video" size={22} />
-          <div>
-            <strong>Video de la sesión</strong>
-            <p>
-              {clip
-                ? "Descarga tu copia local. Conecta una API con soporte de grabaciones para guardarla."
-                : "Graba el proceso, guarda el video y luego inicia su análisis."}
-            </p>
+        clip && (
+          <div className="recording-storage">
+            <Icon name="video" size={22} />
+            <div>
+              <strong>Video de la sesión</strong>
+              <p>
+                Descarga tu copia local. Conecta una API con soporte de
+                grabaciones para guardarla.
+              </p>
+            </div>
           </div>
-        </div>
+        )
       )}
     </section>
   );

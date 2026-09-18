@@ -38,6 +38,12 @@ export default function SessionDetail({
   const [preview, setPreview] = useState("");
   const [message, setMessage] = useState("");
   const [captureProtected, setCaptureProtected] = useState(false);
+  /*
+    Un solo campo de escritura para toda la sesión. Antes había cuatro
+    formularios abiertos a la vez (nota, evidencia, pregunta nueva y
+    respuesta); ahora el modo decide qué se guarda.
+  */
+  const [composerMode, setComposerMode] = useState<"note" | "question">("note");
   const captureProtectionChanged = useCallback(
     (value: boolean) => {
       setCaptureProtected(value);
@@ -190,11 +196,22 @@ export default function SessionDetail({
             )}
             {canWrite && (
               <form
-                className="note-form"
+                className="composer"
                 onSubmit={(e) => {
                   e.preventDefault();
                   const form = e.currentTarget;
                   const text = String(new FormData(form).get("text")).trim();
+                  if (composerMode === "question") {
+                    void run(async () => {
+                      await api(
+                        `${path}/clarifications`,
+                        json({ question: text }),
+                      );
+                      form.reset();
+                      await refresh();
+                    });
+                    return;
+                  }
                   void run(async () => {
                     if (
                       !pendingEvent.current ||
@@ -226,20 +243,63 @@ export default function SessionDetail({
                   });
                 }}
               >
-                <label>
-                  Añadir una nota
-                  <textarea
-                    name="text"
-                    required
-                    maxLength={20000}
-                    placeholder="Primero ingreso al portal y selecciono…"
-                    disabled={busy}
-                  />
-                </label>
-                <button className="primary" disabled={busy}>
-                  <Icon name="plus" size={16} />
-                  Guardar nota
-                </button>
+                <div className="composer-modes" role="group" aria-label="Qué quieres guardar">
+                  <button
+                    type="button"
+                    className={composerMode === "note" ? "on" : ""}
+                    aria-pressed={composerMode === "note"}
+                    onClick={() => setComposerMode("note")}
+                  >
+                    Nota
+                  </button>
+                  <button
+                    type="button"
+                    className={composerMode === "question" ? "on" : ""}
+                    aria-pressed={composerMode === "question"}
+                    onClick={() => setComposerMode("question")}
+                  >
+                    Pregunta
+                  </button>
+                </div>
+                <textarea
+                  name="text"
+                  required
+                  key={composerMode}
+                  maxLength={composerMode === "question" ? 4000 : 20000}
+                  aria-label={
+                    composerMode === "question"
+                      ? "Nueva pregunta"
+                      : "Añadir una nota"
+                  }
+                  placeholder={
+                    composerMode === "question"
+                      ? "¿Qué se debe validar en este paso?"
+                      : "Primero ingreso al portal y selecciono…"
+                  }
+                  disabled={busy}
+                />
+                <div className="composer-actions">
+                  <label className="composer-attach">
+                    <Icon name="upload" size={16} />
+                    Adjuntar captura
+                    <input
+                      aria-label="Subir una captura"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      disabled={busy}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void run(() => upload(file));
+                      }}
+                    />
+                  </label>
+                  <button className="primary" disabled={busy}>
+                    {composerMode === "question"
+                      ? "Añadir pregunta"
+                      : "Guardar nota"}
+                  </button>
+                </div>
               </form>
             )}
           </section>
@@ -279,25 +339,6 @@ export default function SessionDetail({
               ))}
               {!evidence.length && (
                 <p className="muted inset">Aún no hay capturas.</p>
-              )}
-              {canWrite && (
-                <div className="upload-area">
-                  <label className="upload-label">
-                    Subir una captura
-                    <input
-                      aria-label="Subir una captura"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      disabled={busy}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (file) void run(() => upload(file));
-                      }}
-                    />
-                  </label>
-                  <small>PNG, JPG o WebP · Hasta 10 MB</small>
-                </div>
               )}
             </section>
             <section className="panel detail-panel">
@@ -350,37 +391,6 @@ export default function SessionDetail({
                 ))}
                 {!questions.length && (
                   <p className="muted">No hay preguntas pendientes.</p>
-                )}
-                {current.status === "capturing" && (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const f = new FormData(form);
-                      void run(async () => {
-                        await api(
-                          `${path}/clarifications`,
-                          json({ question: f.get("question") }),
-                        );
-                        form.reset();
-                        await refresh();
-                      });
-                    }}
-                  >
-                    <label>
-                      Nueva pregunta
-                      <textarea
-                        name="question"
-                        placeholder="¿Qué se debe validar en este paso?"
-                        required
-                        maxLength={4000}
-                        disabled={busy}
-                      />
-                    </label>
-                    <button className="secondary" disabled={busy}>
-                      Añadir pregunta
-                    </button>
-                  </form>
                 )}
               </div>
             </section>

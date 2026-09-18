@@ -21,6 +21,17 @@ export const labels: Record<string, string> = {
   reviewer: "Revisor",
   reader: "Lector",
 };
+/*
+  Los tres estados del conocimiento salen de dos campos que la API ya entrega:
+  `origin` dice de dónde vino y `validation_status` si alguien lo aprobó. La
+  validación humana manda sobre el origen, porque es la que da confianza.
+*/
+export function knowledgeState(origin: string, validation: string) {
+  if (validation === "confirmed") return { key: "validado", label: "Validado" };
+  if (validation === "rejected") return { key: "rechazado", label: "Rechazado" };
+  if (origin === "inferred") return { key: "inferido", label: "Inferido" };
+  return { key: "observado", label: "Observado" };
+}
 export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

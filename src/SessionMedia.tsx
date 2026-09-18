@@ -173,50 +173,59 @@ export default function SessionMedia({
   }
   return (
     <div className="session-media">
-      <div className={`connection-bar ${connection}`} role="status">
-        <span>
+      {/*
+        Estado y límites en una sola línea. El detalle técnico (sincronización,
+        tamaños, formato) vive dentro del desplegable: hace falta al depurar,
+        no mientras alguien enseña un proceso.
+      */}
+      <details className={`session-status ${connection}`}>
+        <summary>
           <i />
-          {connection === "online"
-            ? "API conectada"
-            : connection === "loading"
-              ? "Conectando con tu espacio…"
-              : connection === "missing"
-                ? "Grabaciones no disponibles en esta API"
-                : "Conexión interrumpida"}
-        </span>
-        <small>
-          {lastSync
-            ? `Última sincronización: ${lastSync}`
-            : "Comprobando disponibilidad"}
-        </small>
-        <button
-          className="text-button"
-          onClick={() => setRefresh((key) => key + 1)}
-        >
-          Reconectar / actualizar
-        </button>
-      </div>
+          <span>
+            {connection === "online"
+              ? "API conectada"
+              : connection === "loading"
+                ? "Conectando con tu espacio…"
+                : connection === "missing"
+                  ? "Grabaciones no disponibles en esta API"
+                  : "Conexión interrumpida"}
+          </span>
+          <small>Ver detalles</small>
+        </summary>
+        <div className="session-status-body">
+          <p>
+            {lastSync
+              ? `Última sincronización: ${lastSync}`
+              : "Comprobando disponibilidad"}
+          </p>
+          {capabilities && (
+            <ul>
+              <li>
+                {Math.floor(capabilities.max_seconds / 60)} min por video
+              </li>
+              <li>{Math.floor(capabilities.max_bytes / 1048576)} MB máximo</li>
+              <li>
+                {capabilities.max_recordings_per_session} video por sesión
+              </li>
+              <li>
+                Análisis posterior · audio{" "}
+                {capabilities.audio_supported ? "compatible" : "no analizado"}
+              </li>
+            </ul>
+          )}
+          <button
+            className="text-button"
+            onClick={() => setRefresh((key) => key + 1)}
+          >
+            Reconectar / actualizar
+          </button>
+        </div>
+      </details>
       {connectionError && (
         <div className="info">
           {connectionError}{" "}
           {connection === "offline" &&
             "La grabación local continúa. Los datos se consultarán de nuevo automáticamente."}
-        </div>
-      )}
-      {capabilities && (
-        <div className="capabilities-note">
-          <span>
-            <Icon name="clock" size={14} />
-            {Math.floor(capabilities.max_seconds / 60)} min por video
-          </span>
-          <span>{Math.floor(capabilities.max_bytes / 1048576)} MB máximo</span>
-          <span>
-            {capabilities.max_recordings_per_session} video por sesión
-          </span>
-          <span>
-            Análisis posterior · audio{" "}
-            {capabilities.audio_supported ? "compatible" : "no analizado"}
-          </span>
         </div>
       )}
       {writable && (!item || item.status === "uploading") ? (
@@ -393,12 +402,12 @@ export default function SessionMedia({
         </section>
       )}
       {capabilities && writable && (!item || item.status === "uploading") && (
-        <section className="panel import-video">
-          <h3>
+        <details className="panel import-video">
+          <summary>
             {item
               ? "Continuar una subida anterior"
               : "¿Ya tienes el video grabado?"}
-          </h3>
+          </summary>
           <p>
             {item
               ? "Selecciona el mismo archivo. Un video diferente no debe usarse para recuperar esta reserva."
@@ -448,7 +457,7 @@ export default function SessionMedia({
               onBusy={setUploadBusy}
             />
           )}
-        </section>
+        </details>
       )}
       {item?.status === "ready" && (
         <RecordingReport
