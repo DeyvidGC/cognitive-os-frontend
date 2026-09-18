@@ -5,7 +5,7 @@ import ts from "typescript";
 
 // Compile the actual client with an empty Vite environment for Node's test runner.
 const source = (
-  await readFile(new URL("../src/api.ts", import.meta.url), "utf8")
+  await readFile(new URL("../src/shared/api.ts", import.meta.url), "utf8")
 ).replace("import.meta.env", "({})");
 const compiled = ts.transpileModule(source, {
   compilerOptions: {
@@ -17,6 +17,20 @@ const { client, json, allPages, ApiError } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 const originalFetch = globalThis.fetch;
+test("document exports preserve authorization, custom timeout and binary response", async () => {
+  const signal = new AbortController().signal;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(options.headers.get("Authorization"), "Bearer token");
+    assert.equal(options.signal, signal);
+    assert.deepEqual(JSON.parse(options.body), { revision: 4, format: "pdf", style: "tutorial" });
+    return new Response("%PDF-test", { headers: { "Content-Type": "application/pdf" } });
+  };
+  const file = await client("token", "org")("/recordings/id/report/file", {
+    ...json({ revision: 4, format: "pdf", style: "tutorial" }), signal,
+  });
+  assert.ok(file instanceof Blob);
+  assert.equal(await file.text(), "%PDF-test");
+});
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -109,4 +123,28 @@ test("database failures, validation details and offline errors are actionable", 
     throw new TypeError("Failed to fetch");
   };
   await assert.rejects(client()("/procedures"), /No se pudo conectar/);
+});
+
+test("agent WebSocket authenticates in the first frame, never in its URL", () => {
+  const previousSocket = globalThis.WebSocket;
+  const previousWindow = globalThis.window;
+  const frames = [];
+  let address;
+  let opened;
+  globalThis.window = { location: { href: "https://workspace.test/" } };
+  globalThis.WebSocket = class {
+    constructor(url) { address = String(url); }
+    addEventListener(name, callback) { if (name === "open") opened = callback; }
+    send(value) { frames.push(JSON.parse(value)); }
+  };
+  try {
+    client("private-token", "org-1").agentSocket("session-1");
+    assert.equal(address, "wss://workspace.test/api/v1/learning-sessions/session-1/agent/live");
+    assert.equal(frames.length, 0);
+    opened();
+    assert.deepEqual(frames, [{ type: "auth", token: "private-token", organization_id: "org-1", consent: true }]);
+  } finally {
+    if (previousSocket === undefined) delete globalThis.WebSocket; else globalThis.WebSocket = previousSocket;
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+  }
 });

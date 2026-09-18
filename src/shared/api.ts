@@ -12,6 +12,7 @@ export type User = {
 export type Session = {
   id: string;
   author_id: string;
+  procedure_id?: string | null;
   objective: string;
   application_name: string;
   status: string;
@@ -74,6 +75,11 @@ const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(
   "",
 );
 const translations: Record<string, string> = {
+  "Resolve pending clarifications before exporting": "Responde todas las aclaraciones antes de generar el documento.",
+  "Revise the rejected report before exporting": "Corrige el informe rechazado antes de exportarlo.",
+  "Document exports are busy; retry shortly": "Hay documentos en preparación. Inténtalo de nuevo en un momento.",
+  "Document generation failed; verify the video and retry": "No se pudo generar el documento. Verifica el video e inténtalo de nuevo.",
+  "Video captures no longer match the analyzed evidence": "Las capturas no coinciden con el análisis. Regenera el informe antes de exportar.",
   "Invalid credentials": "El correo o la contraseña no son correctos.",
   "Registration is disabled":
     "El registro está deshabilitado en la API. Contacta al administrador.",
@@ -95,7 +101,7 @@ const translations: Record<string, string> = {
     "Añade una nota o una evidencia antes de finalizar.",
 };
 export function client(token = "", organization = "", onExpired?: () => void) {
-  return async function request<T>(
+  async function request<T>(
     path: string,
     options: RequestInit = {},
   ): Promise<T> {
@@ -143,7 +149,31 @@ export function client(token = "", organization = "", onExpired?: () => void) {
     if (response.status === 204) return undefined as T;
     if (path.endsWith("/file")) return (await response.blob()) as T;
     return response.json();
-  };
+  }
+  return Object.assign(request, {
+    agentSocket(sessionId: string) {
+      const url = new URL(
+        `${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/live`,
+        window.location.href,
+      );
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(url);
+      socket.addEventListener(
+        "open",
+        () =>
+          socket.send(
+            JSON.stringify({
+              type: "auth",
+              token,
+              organization_id: organization,
+              consent: true,
+            }),
+          ),
+        { once: true },
+      );
+      return socket;
+    },
+  });
 }
 export type Client = ReturnType<typeof client>;
 export const json = (body: unknown, method = "POST"): RequestInit => ({

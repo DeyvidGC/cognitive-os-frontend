@@ -1,11 +1,16 @@
+import { confirmAction } from "../../shared/confirmAction";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
-import type { Client } from "./api";
-import type { Recording, RecordingCapabilities } from "./recordings";
-import RecordingUploadPanel from "./RecordingUploadPanel";
+import type { Client } from "../../shared/api";
+import type {
+  Recording,
+  RecordingCapabilities,
+} from "../recordings/recordings";
+import RecordingUploadPanel from "../recordings/RecordingUploadPanel";
 import FloatingAgent from "./FloatingAgent";
 import { ScreenCapture, formatDuration } from "./screenCapture";
-import { ErrorNotice, Icon } from "./ui";
+import type { CaptureState } from "./screenCapture";
+import { ErrorNotice, Icon } from "../../shared/ui";
 import "./ScreenStudio.css";
 
 export default function ScreenStudio({
@@ -24,14 +29,20 @@ export default function ScreenStudio({
   existing?: Recording;
   onSaved: (recording: Recording) => void;
   onBusy: (value: boolean) => void;
-  agentPanel: ReactNode;
+  agentPanel: ReactNode | ((state: CaptureState) => ReactNode);
   onProtectedChange: (value: boolean) => void;
 }) {
+  const [microphoneDefault, setMicrophoneDefault] = useState(true);
   const [capture] = useState(() => new ScreenCapture());
   const state = useSyncExternalStore(capture.subscribe, capture.getSnapshot);
   const video = useRef<HTMLVideoElement>(null);
+  const studio = useRef<HTMLElement>(null);
   const { phase, stream, clip } = state;
   const protectedState = phase !== "idle";
+  useEffect(() => {
+    if (clip)
+      studio.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [clip]);
   useEffect(() => () => capture.dispose(), [capture]);
   useEffect(() => {
     onProtectedChange(protectedState);
@@ -47,7 +58,12 @@ export default function ScreenStudio({
     return () => window.removeEventListener("beforeunload", warn);
   }, [protectedState]);
   useEffect(() => {
-    if (video.current) video.current.srcObject = stream;
+    const element = video.current;
+    if (!element) return;
+    element.srcObject = stream;
+    return () => {
+      element.srcObject = null;
+    };
   }, [stream]);
   const status = {
     idle: "Sin pantalla compartida",
@@ -61,10 +77,14 @@ export default function ScreenStudio({
   const hasCapture = !!stream;
   useEffect(() => {
     if (capabilities)
-      capture.setLimits(capabilities.max_bytes, capabilities.max_seconds);
+      capture.setLimits(
+        capabilities.max_bytes,
+        Math.min(1800, capabilities.max_seconds),
+      );
   }, [capture, capabilities]);
   return (
     <section
+      ref={studio}
       className="screen-studio"
       aria-label="Pantalla y agente de aprendizaje"
     >
@@ -79,6 +99,31 @@ export default function ScreenStudio({
           {status}
         </span>
       </div>
+      {clip && capabilities ? (
+        <RecordingUploadPanel
+          key={clip}
+          api={api}
+          sessionId={sessionId}
+          clip={clip}
+          duration={state.seconds}
+          capabilities={capabilities}
+          existing={existing}
+          onSaved={onSaved}
+          onBusy={onBusy}
+        />
+      ) : (
+        <div className="recording-storage">
+          <Icon name="video" size={22} />
+          <div>
+            <strong>Video de la sesión</strong>
+            <p>
+              {clip
+                ? "Descarga tu copia local. Conecta una API con soporte de grabaciones para guardarla."
+                : "Graba el proceso, guarda el video y luego inicia su análisis."}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="studio-grid">
         <div className="studio-screen">
           <div className="screen-chrome">
@@ -97,6 +142,7 @@ export default function ScreenStudio({
           >
             {stream ? (
               <video
+                key="live"
                 ref={video}
                 autoPlay
                 muted
@@ -105,6 +151,7 @@ export default function ScreenStudio({
               />
             ) : clip ? (
               <video
+                key="recorded"
                 src={clip}
                 controls
                 playsInline
@@ -128,17 +175,27 @@ export default function ScreenStudio({
                   className="primary"
                   type="button"
                   disabled={phase === "selecting"}
-                  onClick={() => void capture.share()}
+                  onClick={async () => {
+                    await capture.share();
+                    if (microphoneDefault) await capture.enableMicrophone();
+                  }}
                 >
                   <Icon name="share" size={17} />
                   {phase === "selecting"
                     ? "Elige en el navegador…"
                     : "Compartir pantalla"}
                 </button>
-                <small>
-                  Solo se captura la superficie que elijas. Puedes añadir tu
-                  micrófono antes de grabar.
-                </small>
+                <small>Solo se captura la superficie que elijas.</small>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={microphoneDefault}
+                    onChange={(event) =>
+                      setMicrophoneDefault(event.target.checked)
+                    }
+                  />{" "}
+                  Activar micrófono al compartir (requiere permiso)
+                </label>
               </div>
             )}
             {(phase === "recording" || phase === "paused") && (
@@ -248,9 +305,9 @@ export default function ScreenStudio({
                   <button
                     className="secondary"
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        window.confirm(
+                        await confirmAction(
                           "La grabación actual se eliminará de esta vista. Descarga el video antes de continuar. ¿Preparar otra grabación?",
                         )
                       )
@@ -278,35 +335,11 @@ export default function ScreenStudio({
             </span>
           </div>
         </div>
-        <FloatingAgent capture={capture} state={state}>{agentPanel}</FloatingAgent>
+        <FloatingAgent capture={capture} state={state}>
+          {typeof agentPanel === "function" ? agentPanel(state) : agentPanel}
+        </FloatingAgent>
       </div>
       <ErrorNotice error={state.error} />
-      {clip && capabilities ? (
-        <RecordingUploadPanel
-          key={clip}
-          api={api}
-          sessionId={sessionId}
-          clip={clip}
-          duration={state.seconds}
-          capabilities={capabilities}
-          existing={existing}
-          onSaved={onSaved}
-          onBusy={onBusy}
-        />
-      ) : (
-        clip && (
-          <div className="recording-storage">
-            <Icon name="video" size={22} />
-            <div>
-              <strong>Video de la sesión</strong>
-              <p>
-                Descarga tu copia local. Conecta una API con soporte de
-                grabaciones para guardarla.
-              </p>
-            </div>
-          </div>
-        )
-      )}
     </section>
   );
 }

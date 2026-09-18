@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
 const source = (
-  await readFile(new URL("../src/recordings.ts", import.meta.url), "utf8")
+  await readFile(
+    new URL("../src/features/recordings/recordings.ts", import.meta.url),
+    "utf8",
+  )
 ).replace(
-  /import \{ json \} from ['"]\.\/api['"];?/,
+  /import \{ json \} from ['"]\.\.\/\.\.\/shared\/api['"];?/,
   'const json = (body, method = "POST") => ({ method, body: JSON.stringify(body) });',
 );
 const compiled = ts.transpileModule(source, {
@@ -189,4 +192,96 @@ test("API limits and pre-cancelled transfers are enforced", async () => {
     transferVideo(signed, blob, () => {}, c.signal),
     { name: "AbortError" },
   );
+});
+
+test("audio analysis consent is opt-in and retained on reservation retries", async () => {
+  for (const allowed of [false, true]) {
+    const bodies = [];
+    const api = async (path, options) => {
+      if (path.includes("learning-sessions")) {
+        bodies.push(JSON.parse(options.body));
+        if (bodies.length === 1) throw new Error("connection lost");
+        return reservation;
+      }
+      return { ...reservation, status: "uploaded" };
+    };
+    const upload = new RecordingUpload(api, "s1", blob, undefined, allowed);
+    const send = () =>
+      upload.send(
+        () => {},
+        () => {},
+        new AbortController().signal,
+      );
+    await assert.rejects(send, /connection lost/);
+    await send();
+    assert.equal(bodies[0].audio_consent, allowed);
+    assert.equal(bodies[1].audio_consent, allowed);
+    assert.equal(bodies[0].idempotency_key, bodies[1].idempotency_key);
+  }
+});
+
+test("resumable uploads skip existing blocks and never send Put Blob headers", async () => {
+  const sent = fakeXHR();
+  const data = new Blob(["abcdefgh"], { type: "video/webm" });
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    await data.arrayBuffer(),
+  );
+  const hash = Buffer.from(digest).toString("hex");
+  const item = { ...reservation, size_bytes: 8, content_sha256: hash };
+  let committed = 0;
+  const api = async (path) => {
+    if (path.includes("learning-sessions")) return [item];
+    if (path.endsWith("upload-status"))
+      return {
+        complete: false,
+        block_size_bytes: 4,
+        content_sha256: hash,
+        blocks: [
+          { index: 0, id: "AA==", size_bytes: 4, uploaded: true },
+          { index: 1, id: "BB==", size_bytes: 4, uploaded: false },
+        ],
+      };
+    if (path.endsWith("upload-url")) return signed;
+    if (path.endsWith("commit-blocks")) {
+      committed++;
+      return { ...item, status: "uploaded" };
+    }
+    return item;
+  };
+  const upload = new RecordingUpload(api, "s1", data, undefined, false, true);
+  const result = await upload.send(
+    () => {},
+    () => {},
+    new AbortController().signal,
+  );
+  assert.equal(result.status, "uploaded");
+  assert.equal(committed, 1);
+  assert.equal(sent.length, 1);
+  assert.equal(new URL(sent[0].url).searchParams.get("blockid"), "BB==");
+  assert.equal(new URL(sent[0].url).searchParams.get("comp"), "block");
+  assert.equal(sent[0].headers["x-ms-blob-type"], undefined);
+  assert.equal(await sent[0].blob.text(), "efgh");
+});
+
+test("resumable recovery rejects same-sized files with a different hash", async () => {
+  const sent = fakeXHR();
+  const existing = { ...reservation, content_sha256: "0".repeat(64) };
+  const upload = new RecordingUpload(
+    async () => existing,
+    "s1",
+    blob,
+    existing,
+    false,
+    true,
+  );
+  await assert.rejects(
+    upload.send(
+      () => {},
+      () => {},
+      new AbortController().signal,
+    ),
+    /no coincide/,
+  );
+  assert.equal(sent.length, 0);
 });

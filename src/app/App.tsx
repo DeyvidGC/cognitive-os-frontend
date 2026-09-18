@@ -1,11 +1,14 @@
-import { date, labels, useAction } from "./utils";
+import VideoHistory from "../features/recordings/VideoHistory";
+import { confirmAction } from "../shared/confirmAction";
+import { date, labels, useAction } from "../shared/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { allPages, client, json } from "./api";
-import type { Procedure, Result, Session, User } from "./api";
-import Auth from "./Auth";
-import SessionDetail from "./SessionDetail";
-import ProcedureDetail from "./ProcedureDetail";
-import { Badge, Empty, ErrorNotice, Icon, Modal } from "./ui";
+import { allPages, client, json } from "../shared/api";
+import type { Procedure, Result, Session, User } from "../shared/api";
+import Auth from "../features/auth/Auth";
+import SessionDetail from "../features/sessions/SessionDetail";
+import ProcedureDetail from "../features/procedures/ProcedureDetail";
+import RecordingSearch from "../features/knowledge/RecordingSearch";
+import { Badge, Empty, ErrorNotice, Icon, Modal } from "../shared/ui";
 import "./App.css";
 type Page = "overview" | "sessions" | "procedures" | "knowledge";
 const navigation: { id: Page; label: string; icon: string }[] = [
@@ -81,18 +84,19 @@ function Workspace({
   const [page, setPage] = useState<Page>("overview");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [targetVersion, setTargetVersion] = useState("");
   const [selected, setSelected] = useState<Session | Procedure | null>(null);
   const [captureProtected, setCaptureProtected] = useState(false);
   const updateCaptureProtected = useCallback((value: boolean) => {
     protectedRef.current = value;
     setCaptureProtected(value);
   }, []);
-  function canLeaveCapture() {
+  async function canLeaveCapture() {
     return (
       !captureProtected ||
-      window.confirm(
+      (await confirmAction(
         "Hay una captura, una subida o correcciones sin guardar. Al salir se detendrá la captura y se perderán los cambios y videos locales sin guardar. ¿Salir de la sesión?",
-      )
+      ))
     );
   }
   const [modal, setModal] = useState<"session" | "procedure" | null>(null);
@@ -126,8 +130,8 @@ function Workspace({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (organization) void refresh();
   }, [organization, refresh]);
-  function navigate(next: Page) {
-    if (!canLeaveCapture()) return;
+  async function navigate(next: Page) {
+    if (!(await canLeaveCapture())) return;
     if (selected) void refresh();
     setPage(next);
     setSelected(null);
@@ -168,8 +172,9 @@ function Workspace({
             <select
               aria-label="Organización"
               value={organization}
-              onChange={(e) => {
-                if (canLeaveCapture()) setOrganization(e.target.value);
+              onChange={async (e) => {
+                const next = e.target.value;
+                if (await canLeaveCapture()) setOrganization(next);
               }}
             >
               {user.memberships.map((m) => (
@@ -216,7 +221,7 @@ function Workspace({
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  if (!canLeaveCapture()) return;
+                  if (!(await canLeaveCapture())) return;
                   if (!accessExpired)
                     await api("/auth/logout", { method: "POST" });
                   logout();
@@ -255,8 +260,8 @@ function Workspace({
             <>
               <button
                 className="text-button back"
-                onClick={() => {
-                  if (!canLeaveCapture()) return;
+                onClick={async () => {
+                  if (!(await canLeaveCapture())) return;
                   setSelected(null);
                   void refresh();
                 }}
@@ -265,6 +270,20 @@ function Workspace({
               </button>
               {"objective" in selected ? (
                 <SessionDetail
+                  key={selected.id}
+                  onNewSession={async () => {
+                    if (await canLeaveCapture()) setModal("session");
+                  }}
+                  onOpenProcedure={async (procedureId, versionId) => {
+                    if (!(await canLeaveCapture())) return;
+                    const procedure = await api<Procedure>(
+                      `/procedures/${procedureId}`,
+                    );
+                    setTargetVersion(versionId);
+                    setSelected(procedure);
+                    setPage("procedures");
+                    void refresh();
+                  }}
                   api={api}
                   session={selected}
                   membership={membership}
@@ -273,6 +292,8 @@ function Workspace({
                 />
               ) : (
                 <ProcedureDetail
+                  key={selected.id}
+                  initialVersion={targetVersion}
                   api={api}
                   procedure={selected}
                   membership={membership}
@@ -396,6 +417,13 @@ function Workspace({
               ) : (
                 !loadError && (
                   <>
+                    {page === "sessions" && membership.role !== "reader" && (
+                      <VideoHistory
+                        api={api}
+                        sessions={sessions}
+                        onOpen={setSelected}
+                      />
+                    )}
                     {((page === "overview" && membership.role !== "reader") ||
                       page === "sessions") && (
                       <section className="panel">
@@ -446,7 +474,7 @@ function Workspace({
                                     <td>
                                       <button
                                         className="row-link"
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setSelected(s);
                                           setPage("sessions");
                                         }}
@@ -468,7 +496,7 @@ function Workspace({
                                       <button
                                         className="icon-button"
                                         aria-label={`Abrir ${s.objective}`}
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setSelected(s);
                                           setPage("sessions");
                                         }}
@@ -537,7 +565,7 @@ function Workspace({
                             <button
                               key={p.id}
                               className="procedure-card"
-                              onClick={() => {
+                              onClick={async () => {
                                 setSelected(p);
                                 setPage("procedures");
                               }}
@@ -566,6 +594,18 @@ function Workspace({
                           </Empty>
                         )}
                       </section>
+                    )}
+                    {page === "knowledge" && membership?.role !== "reader" && (
+                      <RecordingSearch
+                        api={api}
+                        onOpen={async (id) => {
+                          const next = await api<Session>(
+                            `/learning-sessions/${id}`,
+                          );
+                          setSelected(next);
+                          setPage("sessions");
+                        }}
+                      />
                     )}
                     {page === "knowledge" && (
                       <section className="panel search-panel">
@@ -622,7 +662,7 @@ function Workspace({
                                 <p>{r.content}</p>
                                 <button
                                   className="text-button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     const p = procedures.find(
                                       (p) => p.id === r.procedure_id,
                                     );
@@ -689,6 +729,7 @@ function Workspace({
                     json({
                       objective: f.get("objective"),
                       application_name: f.get("application_name"),
+                      procedure_id: f.get("procedure_id") || null,
                       consent: f.get("consent") === "on",
                     }),
                   );
@@ -730,6 +771,14 @@ function Workspace({
                       required
                       maxLength={200}
                     />
+                  </label>
+                  <label>
+                    Proceso que estás actualizando
+                    <select name="procedure_id" defaultValue={selected && "objective" in selected ? selected.procedure_id || "" : ""}>
+                      <option value="">Nuevo proceso</option>
+                      {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.title}</option>)}
+                    </select>
+                    <small>El análisis aprobado generará una nueva versión en borrador y conservará las anteriores.</small>
                   </label>
                   <label className="checkbox">
                     <input type="checkbox" name="consent" required />

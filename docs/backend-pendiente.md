@@ -1,68 +1,80 @@
-# Integración del frontend con Cognitive OS API
+# Contratos necesarios para completar la experiencia
 
-Revisión realizada sobre `C:/Users/deyvi/PycharmProjects/Cognitive`. Este cambio solo modifica el frontend.
+Actualizado: 18 de septiembre de 2026. Cambios de esta entrega limitados al frontend; no se modificó la API.
 
-## Ya implementado en la API y conectado en el frontend
+## Implementado en el frontend
 
-| Flujo                                            | Contrato existente                                                       |
-| ------------------------------------------------ | ------------------------------------------------------------------------ |
-| Disponibilidad y límites                         | `GET /api/v1/recordings/capabilities`                                    |
-| Reservar video con consentimiento e idempotencia | `POST /learning-sessions/{id}/recordings`                                |
-| Consultar grabaciones                            | `GET /learning-sessions/{id}/recordings`, `GET /recordings/{id}`         |
-| Subida directa a Azure                           | `POST /recordings/{id}/upload-url`, PUT a la URL firmada con sus headers |
-| Confirmar almacenamiento                         | `POST /recordings/{id}/complete`                                         |
-| Reproducción                                     | `GET /recordings/{id}/playback`                                          |
-| Analizar y reintentar                            | `POST /recordings/{id}/process`, `POST /recordings/{id}/retry`           |
-| Informe editable con control de revisión         | `GET/PUT /recordings/{id}/report`                                        |
-| Aprobar/rechazar informe                         | `POST /recordings/{id}/report/review`                                    |
-| Notas, preguntas y respuestas                    | Endpoints existentes de `events` y `clarifications`                      |
-| Trabajo de procesamiento                         | `GET /jobs/{id}` tras finalizar una sesión                               |
+- Al guardar el video desaparece el estudio de captura vacío. Conversación/contexto queda en un desplegable y se conserva el reproductor de la grabación.
+- Historial en **Sesiones de aprendizaje**, con búsqueda, fecha, estado y acceso a cada sesión. Recupera las grabaciones de las sesiones existentes con concurrencia limitada y avisa si la carga es parcial.
+- Nueva sesión desde el detalle; cada sesión conserva su video. Si la API devuelve varios videos, el detalle permite seleccionarlos. La creación de múltiples videos en una misma sesión todavía depende del cambio de contrato descrito abajo.
+- Importación WebM/MP4 visible antes de la captura, vista previa, cancelación de selección y subida recuperable. Después de guardar se utiliza la acción existente de analizar.
+- Micrófono preseleccionado al compartir; requiere el permiso del navegador y se puede desactivar o silenciar. El consentimiento para analizar audio sigue siendo explícito al guardar.
+- BPMN horizontal con actividades azules, inicio verde, fin violeta y decisiones amarillas; zoom, encajar, descarga y lista accesible. Se conservan las conexiones y condiciones recibidas.
+- Requisitos previos ocultos en la vista del informe, sin borrar los datos. Reglas con evidencia desplegable y enlaces descriptivos; excepciones en un desplegable al final.
+- Aclaraciones como encuesta completa o una pregunta a la vez; texto, dictado y lectura de preguntas. El dictado usa SpeechRecognition del navegador y guarda únicamente el texto confirmado en el endpoint de respuesta existente. En navegadores sin soporte sigue disponible el texto.
+- El agente puede leer en voz alta las preguntas recibidas en sus respuestas y mostrar un aviso. Esto es una respuesta a un mensaje/captura enviado: todavía no observa continuamente ni inicia preguntas autónomas.
+- Se mantienen carga por bloques, historial de informes, reproducción, trabajos, revisión editorial, búsqueda, exportación Word/PDF y autenticación del WebSocket.
 
-Todas las rutas abreviadas tienen prefijo `/api/v1`. Las llamadas a la API usan bearer y organización. La subida firmada a Azure usa solamente los headers de `SignedTransfer`, sin reenviar bearer ni cabecera de organización.
+## 1. Sesiones de 30 minutos — necesario
 
-El frontend no confirma «guardado» hasta que `/complete` responde correctamente. Los reintentos conservan la reserva y su clave de idempotencia. Un error al confirmar no vuelve a transferir un video cuya subida ya terminó. Tras recargar se puede seleccionar el mismo archivo para continuar una reserva `uploading`, verificando tamaño y formato; no hay reemplazo ni borrado de reservas porque la API no los ofrece.
+La API local aún declara `recording_max_seconds=600` y valida `le=600` en `src/cognitive_os/core/config.py`. `GET /recordings/capabilities` devuelve ese límite. Cambiar solo el frontend provocaría rechazos del worker.
 
-El informe conecta `instructions[].frame_indices` con `sampling.frames[index].timestamp_ms`, permitiendo buscar ese instante en el reproductor. Los cambios envían la `revision` original y ante 409 se conserva la edición local hasta que el usuario decide recargar. Un informe aprobado se presenta como inmutable.
+Backend debe:
 
-## Lo que debe configurar el backend para probar este flujo real
+- Admitir y anunciar `max_seconds: 1800`, ampliando también la validación de configuración.
+- Revisar tamaño máximo, duración de enlaces firmados, tiempos de espera, extracción de audio, muestreo, presupuesto del modelo y reintentos para 30 minutos.
+- Validar duración en el servidor para capturas e importaciones; devolver un error identificable si excede el límite.
+- Aclarar si los 30 minutos son por archivo o la suma de todos los videos de una sesión. Si es acumulado, exponer `used_seconds` y `remaining_seconds`.
 
-1. Aplicar las migraciones nuevas de grabaciones, informes y trabajos en PostgreSQL.
-2. Configurar almacenamiento Azure privado, contenedor y cadena de conexión solo en el servidor. Verificar que `storage_configured` sea verdadero.
-3. Configurar **CORS del Blob Storage**, además del CORS de FastAPI: orígenes exactos del frontend, métodos PUT/GET/HEAD/OPTIONS y headers requeridos por la firma (`Content-Type`, `x-ms-blob-type`; Range cuando aplique). El proxy de Vite no interviene en la subida directa a Azure.
-4. Ejecutar los workers visual y de consolidación y configurar el proveedor de IA. La existencia de un endpoint o `storage_configured` no garantiza que el worker/modelo esté listo.
-5. Probar un video pequeño: reservar → subir → completar → reproducir → procesar → informe → editar → aprobar. Las pruebas del frontend usan transporte y dispositivos simulados; no certifican Azure, decodificación ni inferencia reales.
+El frontend de captura usa el menor entre 1800 y el límite anunciado. Mientras la API anuncie 600, seguirá mostrando y aplicando 10 minutos.
 
-## Pendiente de implementar: prioridad alta
+## 2. Historial y aprendizaje periódico — necesario para agrupar actualizaciones
 
-### 1. Conversación y observación en vivo
+Hoy `max_recordings_per_session` está fijado en 1. El historial funciona entre sesiones; crear sesiones nuevas no actualiza automáticamente un mismo procedimiento.
 
-No existe WebSocket/SSE, transporte de frames ni respuesta conversacional del agente. El modo actual es `sampled_frames_after_upload`.
+Propuesta de contrato (rutas nuevas, aún no consumidas):
 
-Definir un contrato de sesión del agente autenticada por organización, eventos ordenados e idempotentes y recuperación desde el último evento recibido. Eventos sugeridos: estado del agente, observación, pregunta, respuesta parcial/final, error recuperable, cierre. Incluir IDs, timestamps, origen y correlación con la grabación. Establecer frecuencia, resolución y límites de frames, consentimiento y política de retención.
+- Un identificador estable `learning_series_id` o `procedure_id` que relacione las sesiones de un mismo proceso. Admitirlo en `POST /learning-sessions` y devolverlo en consultas.
+- `GET /recordings?cursor=&limit=&learning_series_id=&status=&query=` por organización. Retornar `items` y `next_cursor`, con `id`, `session_id`, objetivo de sesión, fecha, duración, tamaño, estado, origen (`screen_capture`/`upload`), título y revisión. Miniatura firmada opcional. Esto evita consultar una ruta por sesión para construir el historial.
+- Si se desean varios archivos por sesión, quitar la restricción única y publicar el límite real en capacidades. Cada reserva necesita identidad e idempotencia propias; subir un nuevo archivo no debe recuperar por error la primera reserva existente.
+- Mantener grabaciones e informes anteriores; indicar cuál está vigente y permitir generar una nueva versión del procedimiento a partir de una sesión, sin sobrescribir una versión publicada.
+- Al finalizar/procesar, especificar si se analizan todos los videos o solo `recording_id`, y devolver estados por archivo. No cerrar una sesión con subidas pendientes.
 
-El frontend actual guarda mensajes como `event_type: message` y permite responder aclaraciones; **no los envía a un agente en vivo ni inventa respuestas**. Las notas guardadas tampoco se incorporan hoy al proveedor de análisis visual, que recibe objetivo y frames: el backend debe integrar notas/ACL/respuestas al contexto visual si se espera que influyan en el informe.
+## 3. Aclaraciones por texto, encuesta y voz
 
-### 2. Audio y transcripción sincronizada
+Texto/dictado ya utilizan `PUT /learning-sessions/{session_id}/clarifications/{id}/answer` con `{answer}`. No hace falta otro endpoint para guardar el texto dictado.
 
-El micrófono opcional ya puede incluir voz en el archivo de video. La API declara `audio_supported: false` y el worker visual ignora el audio.
+Para encuestas con opciones reales, ampliar cada pregunta con `answer_type` (`text`, `single_choice`, `multiple_choice`), `options` con IDs estables, obligatoriedad, estado y versión. Validar respuestas y evitar duplicados mediante `client_message_id`. Actualmente la encuesta es de respuestas abiertas; no inventa opciones.
 
-Agregar extracción de audio, transcripción con segmentos temporales y recuperación de errores. Usar las explicaciones y respuestas del usuario como contexto del análisis, conservando su origen. Publicar el soporte real en capabilities. Separar en el contrato `audio_recording_supported` de `audio_analysis_supported` para evitar ambigüedad.
+Para voz independiente del navegador y conservar audio, proponer:
 
-### 3. Convertir un informe aprobado en procedimiento
+- Reserva/subida de audio asociada a sesión y `clarification_id`, con MIME, bytes, duración y consentimiento.
+- Trabajo de transcripción con estados y errores; devolver texto editable antes de guardar la respuesta.
+- Identidad de audio, retención/borrado y permisos por organización. Nunca guardar audio sin consentimiento.
 
-El worker visual produce `RecordingReport`; no produce una versión editorial. Aprobar el informe **no publica conocimiento**.
+## 4. Agente que interrumpe y conversa — necesario
 
-Agregar una operación idempotente que convierta el informe aprobado en un procedimiento o en una nueva versión de uno existente. Devolver `procedure_id`, `version_id` y la asociación de cada paso a grabación, frame y tiempo. Conservar auditoría y permitir la revisión editorial antes de publicar. La creación de borradores basada en texto ya existe, pero es un flujo diferente.
+El canal actual `agent/live` acepta texto e imágenes puntuales. Para que el agente detecte dudas por sí mismo y pregunte durante la sesión, acordar una ampliación versionada:
 
-## Pendiente para recuperación y mejor experiencia
+- Capacidades: `proactive_questions`, `audio_input`, `audio_output`, intervalo de observación, tamaño/frecuencia máxima, formatos y límites de sesión.
+- Eventos del servidor `clarification.created` con `event_id`, `clarification_id`, `question`, contexto, instante del video y prioridad. Persistir la misma pregunta en el endpoint de aclaraciones para recuperarla tras reconectar.
+- Confirmación del cliente y estados responder/posponer/descartar; no repetir preguntas al recuperar conexión. Un solo turno activo.
+- Transporte de audio documentado (WebSocket binario o WebRTC), codec/frecuencia de muestreo y transcripción parcial/final.
+- Voz del agente por fragmentos o URL firmada, con `turn_id`, texto y eventos de inicio/fin; cancelación cuando el usuario interrumpe (`barge-in`).
+- Controles de pausa/reanudación, micrófono silenciado, consentimiento revocado y fin de captura. No seguir observando ni enviando voz después de detener.
+- Recuperación por último `event_id`, expiración de credenciales, heartbeat y errores recuperables; historial sin duplicaciones.
+- Vincular la respuesta hablada a la aclaración correspondiente e incluirla en la regeneración del informe.
 
-- **Trabajos por sesión:** endpoint para recuperar trabajo actual, resultado, fase, error seguro y enlaces a versión/informe después de recargar. `GET /jobs/{id}` requiere conocer un ID que la sesión no expone. Agregar reintento del trabajo textual fallido.
-- **Dudas del informe:** convertir uncertainties en aclaraciones respondibles después del análisis y regenerar una nueva revisión incorporando respuestas. Actualmente responder aclaraciones exige sesión `capturing`, pero el informe llega con sesión `completed`.
-- **Subidas interrumpidas:** cancelación/eliminación segura de reservas y recuperación con hash del archivo. Para archivos grandes, subida por bloques con reanudación real; hoy reintentar una transferencia reinicia el PUT completo.
-- **Publicación con fuentes de video:** extender el contrato de pasos y las reglas de evidencia para aceptar grabación y rango temporal; hoy los pasos de procedimiento solo pueden asociarse a evidencia de imagen. Las marcas actuales viven en el informe visual.
-- **Estado de servicios:** capabilities con disponibilidad de worker/modelo, versión del protocolo y límites de resolución. La UI consulta estados reales con polling; no muestra porcentajes inventados de análisis.
-- **Renovación del acceso:** flujo de renovación/reautenticación para sesiones largas. El front preserva la captura local cuando caduca el token, pero no hay refresh token en el contrato actual.
+El frontend no envía frames continuos ni simula una interrupción autónoma mientras no exista este contrato. La lectura por voz actual es síntesis del navegador y puede necesitar interacción del usuario.
 
-## Criterios de integración final
+## 5. Videos importados, diagrama y documentos
 
-Validar permisos owner/author/reviewer/reader, expiración de SAS, CORS de Azure, corte de red, subida cancelada, reserva duplicada, sesión cerrada durante la transferencia, conflicto de revisión 409, informe aprobado inmutable y reproducción de WebM/MP4 con audio. Las URLs firmadas y las credenciales nunca deben persistirse en logs o en el almacenamiento del navegador.
+La subida desde archivo reutiliza reserva, bloques, confirmación y `process`; no necesita otro endpoint de análisis. Configurar Azure privado/CORS y workers reales. Añadir título/nombre y origen al contrato ayudará a distinguir videos en el historial. Transcodificar si se requiere compatibilidad uniforme entre navegadores.
+
+La API ya incluye reglas, excepciones, alternativas y `/flow/bpmn`; no hay que reconstruir estos endpoints. Mantener consistencia de IDs entre `/flow` y BPMN, revisión y evidencias por paso. El layout horizontal y los colores se aplican en frontend. Las exportaciones del servidor deben mantener el mismo contenido/revisión; si se desea el mismo diseño horizontal dentro de Word/PDF, aplicarlo también en el generador del backend.
+
+## Aceptación pendiente con servicios reales
+
+Build, lint y 24 pruebas automatizadas locales; inspección visual con fixture. Esto no certifica Azure, visión, transcripción ni voz real.
+
+Probar con proveedores y workers activos: video de 30 minutos, importación, micrófono denegado/silenciado, red cortada, recuperación, reproducción remota, análisis, aclaración, revisión, exportación y nueva sesión del mismo proceso. Para conversación autónoma, añadir interrupción del usuario, pausa y reconexión sin duplicar preguntas. Las migraciones y límites deben verificarse antes del despliegue.

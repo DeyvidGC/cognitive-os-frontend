@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
 const source = await readFile(
-  new URL("../src/screenCapture.ts", import.meta.url),
+  new URL("../src/features/capture/screenCapture.ts", import.meta.url),
   "utf8",
 );
 const compiled = ts.transpileModule(source, {
@@ -43,6 +43,9 @@ function setup(getDisplayMedia) {
           getDisplayMedia ||
           (async (options) => {
             assert.equal(options.audio, false);
+            assert.equal(options.selfBrowserSurface, "exclude");
+            assert.equal(options.surfaceSwitching, "exclude");
+            assert.equal(options.preferCurrentTab, false);
             return stream;
           }),
       },
@@ -189,4 +192,13 @@ test("microphone denial preserves the shared screen and allows recording without
   assert.equal(capture.getSnapshot().microphone, "off");
   capture.record();
   assert.equal(capture.getSnapshot().phase, "recording");
+});
+
+test("self capture is rejected and all tracks are released", async () => {
+  const { capture, track } = setup();
+  track.getCaptureHandle = () => ({ handle: "cognitive-os-workspace" });
+  await capture.share();
+  assert.equal(capture.getSnapshot().phase, "idle");
+  assert.equal(capture.getSnapshot().stream, null);
+  assert.equal(track.stopped, true);
 });
