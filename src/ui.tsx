@@ -1,4 +1,4 @@
-import { labels } from "./utils";
+import { knowledgeState, labels } from "./utils";
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 export function Icon({
@@ -102,6 +102,55 @@ export function Badge({ status }: { status: string }) {
     </span>
   );
 }
+export function KnowledgeChip({
+  origin,
+  validation,
+}: {
+  origin: string;
+  validation: string;
+}) {
+  const state = knowledgeState(origin, validation);
+  return <span className={`knowledge-chip ${state.key}`}>{state.label}</span>;
+}
+
+/* Reparto de un conjunto de pasos por estado, como una sola barra. */
+export function StateBar({
+  steps,
+}: {
+  steps: { origin: string; validation_status: string }[];
+}) {
+  if (!steps.length) return null;
+  const count = (key: string) =>
+    steps.filter((s) => knowledgeState(s.origin, s.validation_status).key === key)
+      .length;
+  const parts = [
+    { key: "validado", label: "Validado", n: count("validado") },
+    { key: "inferido", label: "Inferido", n: count("inferido") },
+    { key: "observado", label: "Observado", n: count("observado") },
+  ].filter((p) => p.n > 0);
+  return (
+    <div className="state-summary">
+      <div className="state-bar">
+        {parts.map((p) => (
+          <i
+            key={p.key}
+            className={p.key}
+            style={{ width: `${(p.n / steps.length) * 100}%` }}
+          />
+        ))}
+      </div>
+      <div className="state-legend">
+        {parts.map((p) => (
+          <span key={p.key}>
+            <i className={`state-dot ${p.key}`} />
+            {p.label} {p.n}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Empty({
   title,
   children,

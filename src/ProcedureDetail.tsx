@@ -10,7 +10,15 @@ import type {
   Step,
   Version,
 } from "./api";
-import { Badge, Empty, ErrorNotice, Icon, Modal } from "./ui";
+import {
+  Badge,
+  Empty,
+  ErrorNotice,
+  Icon,
+  KnowledgeChip,
+  Modal,
+  StateBar,
+} from "./ui";
 export default function ProcedureDetail({
   api,
   procedure,
@@ -298,6 +306,7 @@ function VersionEditor({
                 <div>
                   <h2>Pasos del procedimiento</h2>
                   <p>La secuencia que hace posible el resultado.</p>
+                  <StateBar steps={steps} />
                 </div>
                 {editable && (
                   <button
@@ -316,16 +325,18 @@ function VersionEditor({
                     <article key={step.id}>
                       <span className="step-number">{step.position}</span>
                       <div>
-                        <Badge status={step.validation_status} />
+                        <KnowledgeChip
+                          origin={step.origin}
+                          validation={step.validation_status}
+                        />
                         <h3>{step.instruction}</h3>
                         <p>{step.expected_result}</p>
                         <small>
-                          Origen:{" "}
                           {
                             {
-                              observed: "Observado",
-                              inferred: "Inferido",
-                              user_explained: "Explicado por el usuario",
+                              observed: "Observado durante la captura",
+                              inferred: "Deducido por el análisis",
+                              user_explained: "Explicado por el autor",
                             }[step.origin]
                           }
                         </small>
