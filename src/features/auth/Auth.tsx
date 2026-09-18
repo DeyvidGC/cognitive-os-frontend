@@ -1,8 +1,8 @@
-import { useAction } from "./utils";
+import { useAction } from "../../shared/utils";
 import { useState } from "react";
-import { client, json } from "./api";
-import type { User } from "./api";
-import { ErrorNotice, Icon } from "./ui";
+import { client, json } from "../../shared/api";
+import type { User } from "../../shared/api";
+import { ErrorNotice, Icon } from "../../shared/ui";
 export default function Auth({
   onLogin,
   notice,

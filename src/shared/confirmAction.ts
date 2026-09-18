@@ -1,5 +1,9 @@
 // Native dialog supplies focus trapping, Escape and a modal backdrop without blocking JS.
-export function confirmAction(message: string, title = "Antes de continuar", accept = "Continuar"): Promise<boolean> {
+export function confirmAction(
+  message: string,
+  title = "Antes de continuar",
+  accept = "Continuar",
+): Promise<boolean> {
   return new Promise((resolve) => {
     const previous = document.activeElement as HTMLElement | null;
     const dialog = document.createElement("dialog");
@@ -29,7 +33,10 @@ export function confirmAction(message: string, title = "Antes de continuar", acc
     };
     cancel.onclick = () => finish(false);
     confirm.onclick = () => finish(true);
-    dialog.oncancel = (event) => { event.preventDefault(); finish(false); };
+    dialog.oncancel = (event) => {
+      event.preventDefault();
+      finish(false);
+    };
     dialog.onclose = () => finish(false);
     actions.append(cancel, confirm);
     dialog.append(heading, text, actions);

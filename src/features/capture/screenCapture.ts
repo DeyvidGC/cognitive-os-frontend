@@ -142,14 +142,49 @@ export class ScreenCapture {
     const generation = ++this.generation;
     this.update({ phase: "selecting", error: "" });
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      const devices = navigator.mediaDevices as MediaDevices & {
+        setCaptureHandleConfig?: (config: {
+          handle: string;
+          exposeOrigin: boolean;
+          permittedOrigins: string[];
+        }) => void;
+      };
+      if (typeof location !== "undefined")
+        devices.setCaptureHandleConfig?.({
+          handle: "cognitive-os-workspace",
+          exposeOrigin: true,
+          permittedOrigins: [location.origin],
+        });
+      const options: DisplayMediaStreamOptions & {
+        selfBrowserSurface: "exclude";
+        surfaceSwitching: "exclude";
+        preferCurrentTab: boolean;
+      } = {
         video: {
           frameRate: { ideal: 15, max: 30 },
           width: { ideal: 1920, max: 3840 },
           height: { ideal: 1080, max: 2160 },
         },
         audio: false,
-      });
+        selfBrowserSurface: "exclude",
+        surfaceSwitching: "exclude",
+        preferCurrentTab: false,
+      };
+      const stream = await navigator.mediaDevices.getDisplayMedia(options);
+      const selectedTrack = stream.getVideoTracks()[0] as MediaStreamTrack & {
+        getCaptureHandle?: () => { handle?: string } | null;
+      };
+      if (
+        selectedTrack?.getCaptureHandle?.()?.handle === "cognitive-os-workspace"
+      ) {
+        stream.getTracks().forEach((track) => track.stop());
+        this.update({
+          phase: "idle",
+          error:
+            "Elige otra pestaña o aplicación. No se permite capturar este espacio de Cognitive.",
+        });
+        return;
+      }
       if (generation !== this.generation) {
         stream.getTracks().forEach((track) => track.stop());
         return;

@@ -1,12 +1,14 @@
-import { confirmAction } from "./confirmAction";
-import { date, labels, useAction } from "./utils";
+import VideoHistory from "../features/recordings/VideoHistory";
+import { confirmAction } from "../shared/confirmAction";
+import { date, labels, useAction } from "../shared/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { allPages, client, json } from "./api";
-import type { Procedure, Result, Session, User } from "./api";
-import Auth from "./Auth";
-import SessionDetail from "./SessionDetail";
-import ProcedureDetail from "./ProcedureDetail";
-import { Badge, Empty, ErrorNotice, Icon, Modal } from "./ui";
+import { allPages, client, json } from "../shared/api";
+import type { Procedure, Result, Session, User } from "../shared/api";
+import Auth from "../features/auth/Auth";
+import SessionDetail from "../features/sessions/SessionDetail";
+import ProcedureDetail from "../features/procedures/ProcedureDetail";
+import RecordingSearch from "../features/knowledge/RecordingSearch";
+import { Badge, Empty, ErrorNotice, Icon, Modal } from "../shared/ui";
 import "./App.css";
 type Page = "overview" | "sessions" | "procedures" | "knowledge";
 const navigation: { id: Page; label: string; icon: string }[] = [
@@ -82,6 +84,7 @@ function Workspace({
   const [page, setPage] = useState<Page>("overview");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [targetVersion, setTargetVersion] = useState("");
   const [selected, setSelected] = useState<Session | Procedure | null>(null);
   const [captureProtected, setCaptureProtected] = useState(false);
   const updateCaptureProtected = useCallback((value: boolean) => {
@@ -91,9 +94,9 @@ function Workspace({
   async function canLeaveCapture() {
     return (
       !captureProtected ||
-      await confirmAction(
+      (await confirmAction(
         "Hay una captura, una subida o correcciones sin guardar. Al salir se detendrá la captura y se perderán los cambios y videos locales sin guardar. ¿Salir de la sesión?",
-      )
+      ))
     );
   }
   const [modal, setModal] = useState<"session" | "procedure" | null>(null);
@@ -274,6 +277,20 @@ function Workspace({
               </button>
               {"objective" in selected ? (
                 <SessionDetail
+                  key={selected.id}
+                  onNewSession={async () => {
+                    if (await canLeaveCapture()) setModal("session");
+                  }}
+                  onOpenProcedure={async (procedureId, versionId) => {
+                    if (!(await canLeaveCapture())) return;
+                    const procedure = await api<Procedure>(
+                      `/procedures/${procedureId}`,
+                    );
+                    setTargetVersion(versionId);
+                    setSelected(procedure);
+                    setPage("procedures");
+                    void refresh();
+                  }}
                   api={api}
                   session={selected}
                   membership={membership}
@@ -282,6 +299,8 @@ function Workspace({
                 />
               ) : (
                 <ProcedureDetail
+                  key={selected.id}
+                  initialVersion={targetVersion}
                   api={api}
                   procedure={selected}
                   membership={membership}
@@ -423,6 +442,13 @@ function Workspace({
               ) : (
                 !loadError && (
                   <>
+                    {page === "sessions" && membership.role !== "reader" && (
+                      <VideoHistory
+                        api={api}
+                        sessions={sessions}
+                        onOpen={setSelected}
+                      />
+                    )}
                     {((page === "overview" && membership.role !== "reader") ||
                       page === "sessions") && (
                       <section className="panel">
@@ -593,6 +619,18 @@ function Workspace({
                           </Empty>
                         )}
                       </section>
+                    )}
+                    {page === "knowledge" && membership?.role !== "reader" && (
+                      <RecordingSearch
+                        api={api}
+                        onOpen={async (id) => {
+                          const next = await api<Session>(
+                            `/learning-sessions/${id}`,
+                          );
+                          setSelected(next);
+                          setPage("sessions");
+                        }}
+                      />
                     )}
                     {page === "knowledge" && (
                       <section className="panel search-panel">

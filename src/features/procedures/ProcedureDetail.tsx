@@ -1,6 +1,6 @@
-import { useAction } from "./utils";
+import { useAction } from "../../shared/utils";
 import { useCallback, useEffect, useState } from "react";
-import { allPages, ApiError, json } from "./api";
+import { allPages, ApiError, json } from "../../shared/api";
 import type {
   Client,
   Evidence,
@@ -9,21 +9,23 @@ import type {
   Session,
   Step,
   Version,
-} from "./api";
-import { Badge, Empty, ErrorNotice, Icon, Modal } from "./ui";
+} from "../../shared/api";
+import { Badge, Empty, ErrorNotice, Icon, Modal } from "../../shared/ui";
 export default function ProcedureDetail({
   api,
   procedure,
   membership,
   sessions,
+  initialVersion = "",
 }: {
   api: Client;
   procedure: Procedure;
   membership: Membership;
   sessions: Session[];
+  initialVersion?: string;
 }) {
   const [versions, setVersions] = useState<Version[]>([]);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialVersion);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const { busy, error, run } = useAction();
@@ -34,7 +36,9 @@ export default function ProcedureDetail({
       `/procedures/${procedure.id}/versions`,
     );
     setVersions(items);
-    setSelected((id) => id || items[0]?.id || "");
+    setSelected((id) =>
+      items.some((item) => item.id === id) ? id : items[0]?.id || "",
+    );
     setLoading(false);
   }, [api, procedure.id]);
   useEffect(() => {

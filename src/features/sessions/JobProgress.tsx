@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import type { Client } from "./api";
-import type { Job } from "./recordings";
-import { Badge } from "./ui";
+import type { Client } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import type { Job } from "../recordings/recordings";
+import { Badge } from "../../shared/ui";
+import JobStage from "./JobStage";
 export default function JobProgress({
   api,
   initial,
@@ -14,19 +16,27 @@ export default function JobProgress({
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
+    let failures = 0;
     async function load() {
       try {
         const next = await api<Job>(`/jobs/${initial.id}`);
         if (active) {
           setJob(next);
           setError("");
+          failures = 0;
           if (["completed", "failed"].includes(next.status)) return;
         }
-      } catch {
+      } catch (e) {
+        failures++;
+        if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
+          if (active) setError(e.message);
+          return;
+        }
         if (active)
           setError("No se pudo consultar el trabajo; se reintentará.");
       }
-      if (active) timer = setTimeout(load, 6000);
+      if (active)
+        timer = setTimeout(load, Math.min(30000, 6000 * 2 ** failures));
     }
     void load();
     return () => {
@@ -37,6 +47,7 @@ export default function JobProgress({
   return (
     <div className="job-progress" role="status">
       <Badge status={job.status} />
+      <JobStage job={job} />
       <span>
         {job.kind === "analyze_recording"
           ? "Análisis visual"

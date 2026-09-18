@@ -1,7 +1,7 @@
-import { confirmAction } from "./confirmAction";
+import { confirmAction } from "../../shared/confirmAction";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "./api";
-import type { Client, Session } from "./api";
+import { ApiError } from "../../shared/api";
+import type { Client, Session } from "../../shared/api";
 import type {
   Job,
   Recording,
@@ -9,15 +9,17 @@ import type {
   Transfer,
 } from "./recordings";
 import { validateVideo } from "./recordings";
-import ScreenStudio from "./ScreenStudio";
-import AgentConversation from "./AgentConversation";
+import ScreenStudio from "../capture/ScreenStudio";
+import AgentConversation from "../agent/AgentConversation";
 import RecordingReport from "./RecordingReport";
 import RecordingUploadPanel from "./RecordingUploadPanel";
-import { Badge, ErrorNotice, Icon } from "./ui";
-import { date, useAction } from "./utils";
+import { Badge, ErrorNotice, Icon } from "../../shared/ui";
+import { date, useAction } from "../../shared/utils";
 import "./SessionMedia.css";
+import SessionJobs from "../sessions/SessionJobs";
 export default function SessionMedia({
   api,
+  onOpenProcedure,
   session,
   writable,
   canManage,
@@ -28,6 +30,7 @@ export default function SessionMedia({
   onContextChange,
 }: {
   api: Client;
+  onOpenProcedure: (procedureId: string, versionId: string) => Promise<void>;
   session: Session;
   writable: boolean;
   canManage: boolean;
@@ -40,6 +43,7 @@ export default function SessionMedia({
   const [capabilities, setCapabilities] =
     useState<RecordingCapabilities | null>(null);
   const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [selectedRecording, setSelectedRecording] = useState("");
   const [connection, setConnection] = useState<
     "loading" | "online" | "offline" | "missing"
   >("loading");
@@ -54,9 +58,14 @@ export default function SessionMedia({
   const [uploadBusy, setUploadBusy] = useState(false);
   const player = useRef<HTMLVideoElement>(null);
   const seek = useRef<number | null>(null);
+  const playbackExpiry = useRef(0);
+  const playbackPosition = useRef(0);
+  const [codecError, setCodecError] = useState(false);
   const mounted = useRef(true);
   const { run, error, busy } = useAction();
-  const item = recordings[0];
+  const item =
+    recordings.find((recording) => recording.id === selectedRecording) ||
+    recordings[0];
   // Permission for processing/retry persists after capture closes, unlike message-writing permission.
   const editableRecording = canManage && session.status !== "completed";
   const protectedState =
@@ -90,6 +99,7 @@ export default function SessionMedia({
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     let failures = 0;
+    let poll = true;
     const abort = new AbortController();
     async function load() {
       try {
@@ -106,6 +116,13 @@ export default function SessionMedia({
           }),
         ]);
         if (active) {
+          poll =
+            !["completed", "failed"].includes(updated.status) ||
+            list.some((r) =>
+              ["uploading", "uploaded", "queued", "processing"].includes(
+                r.status,
+              ),
+            );
           failures = 0;
           setCapabilities(caps);
           setRecordings(list);
@@ -117,6 +134,8 @@ export default function SessionMedia({
         }
       } catch (e) {
         if (!active) return;
+        if (e instanceof ApiError && [401, 403, 404].includes(e.status))
+          poll = false;
         if (e instanceof ApiError && e.status === 404) {
           setConnection("missing");
           setConnectionError(
@@ -130,7 +149,7 @@ export default function SessionMedia({
           e instanceof Error ? e.message : "No fue posible sincronizar.",
         );
       } finally {
-        if (active)
+        if (active && poll)
           timer = setTimeout(load, Math.min(30000, 6000 * 2 ** failures));
       }
     }
@@ -155,7 +174,7 @@ export default function SessionMedia({
   );
   async function getPlayback(seconds?: number) {
     if (!item) return;
-    if (seconds !== undefined) seek.current = seconds;
+    seek.current = seconds ?? playbackPosition.current;
     const signed = await api<Transfer>(`/recordings/${item.id}/playback`);
     if (signed.method !== "GET" || Object.keys(signed.headers).length)
       throw new Error(
@@ -163,11 +182,18 @@ export default function SessionMedia({
       );
     if (mounted.current) {
       setPlaybackError(false);
+      setCodecError(false);
+      playbackExpiry.current = new Date(signed.expires_at).getTime();
       setPlayback(signed.url);
     }
   }
   function seekVideo(seconds: number) {
-    if (player.current && playback && player.current.readyState > 0) {
+    if (
+      player.current &&
+      playback &&
+      player.current.readyState > 0 &&
+      Date.now() < playbackExpiry.current
+    ) {
       player.current.currentTime = seconds;
       player.current.scrollIntoView({ behavior: "smooth", block: "center" });
     } else void run(() => getPlayback(seconds));
@@ -220,7 +246,83 @@ export default function SessionMedia({
           </span>
         </div>
       )}
-      {writable && (!item || item.status === "uploading") ? (
+      {capabilities && writable && (!item || item.status === "uploading") && (
+        <section className="panel import-video">
+          <h3>
+            {item
+              ? "Continuar una subida anterior"
+              : "Subir un video para analizar"}
+          </h3>
+          <p>
+            {item
+              ? "Selecciona el mismo archivo. Un video diferente no debe usarse para recuperar esta reserva."
+              : "También puedes subir un WebM o MP4 desde tu equipo."}
+          </p>
+          <label>
+            Seleccionar video
+            <input
+              type="file"
+              accept="video/webm,video/mp4,.webm,.mp4"
+              disabled={uploadBusy || captureProtected}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void run(async () => {
+                  const blob = file.type
+                    ? file
+                    : new Blob([file], {
+                        type: file.name.toLowerCase().endsWith(".mp4")
+                          ? "video/mp4"
+                          : "video/webm",
+                      });
+                  validateVideo(blob, capabilities);
+                  if (
+                    item &&
+                    (item.size_bytes !== blob.size ||
+                      item.media_type !== blob.type.split(";")[0])
+                  )
+                    throw new Error(
+                      "El archivo no coincide con el tamaño y formato de la reserva pendiente.",
+                    );
+                  setExternalClip(URL.createObjectURL(blob));
+                });
+              }}
+            />
+          </label>
+          {externalClip && (
+            <div>
+              <video
+                className="saved-player"
+                src={externalClip}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label="Vista previa del video seleccionado"
+              />
+              <button
+                className="text-button"
+                type="button"
+                disabled={uploadBusy}
+                onClick={() => setExternalClip("")}
+              >
+                Quitar video seleccionado
+              </button>
+              <RecordingUploadPanel
+                key={externalClip}
+                api={api}
+                sessionId={session.id}
+                clip={externalClip}
+                capabilities={capabilities}
+                existing={item}
+                onSaved={saved}
+                onBusy={setUploadBusy}
+              />
+            </div>
+          )}
+        </section>
+      )}
+      {writable && !externalClip && (!item || item.status === "uploading") ? (
         <ScreenStudio
           api={api}
           sessionId={session.id}
@@ -229,7 +331,7 @@ export default function SessionMedia({
           existing={item}
           onSaved={saved}
           onBusy={setUploadBusy}
-          agentPanel={(capture) =>
+          agentPanel={(capture) => (
             <AgentConversation
               capture={capture}
               canAnswer={canManage && session.status !== "processing"}
@@ -238,28 +340,11 @@ export default function SessionMedia({
               writable={writable}
               onContextChange={onContextChange}
             />
-          }
+          )}
         />
       ) : (
-        <div className="session-review-layout">
-          <section className="panel media-summary">
-            <div className="section-heading">
-              <div>
-                <h2>Video de la sesión</h2>
-                <p>
-                  {item
-                    ? "Tu registro visual, disponible en este espacio."
-                    : "Esta sesión no tiene un video guardado."}
-                </p>
-              </div>
-              <Icon name="video" />
-            </div>
-            <p>
-              {item
-                ? "Reproduce el video y utiliza las marcas de tiempo del informe para verificar cada instrucción."
-                : "Las sesiones basadas en notas conservan su contexto y aclaraciones."}
-            </p>
-          </section>
+        <details className="session-conversation-only panel">
+          <summary>Conversación y contexto de la sesión</summary>
           <AgentConversation
             canAnswer={canManage && session.status !== "processing"}
             api={api}
@@ -267,9 +352,45 @@ export default function SessionMedia({
             writable={writable}
             onContextChange={onContextChange}
           />
-        </div>
+        </details>
       )}
       <ErrorNotice error={error} />
+      {recordings.length > 1 && (
+        <label className="recording-picker">
+          Videos de esta sesión
+          <select
+            value={item?.id || ""}
+            onChange={async (event) => {
+              const id = event.target.value;
+              if (
+                protectedState &&
+                !(await confirmAction(
+                  "Hay cambios pendientes. ¿Cambiar de video y descartar los cambios locales?",
+                ))
+              )
+                return;
+              setSelectedRecording(id);
+              setPlayback("");
+              setPlaybackError(false);
+              setCodecError(false);
+              playbackPosition.current = 0;
+              seek.current = null;
+            }}
+          >
+            {recordings.map((recording, index) => (
+              <option key={recording.id} value={recording.id}>
+                Video {index + 1} · {date(recording.created_at)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <SessionJobs
+        api={api}
+        sessionId={session.id}
+        refreshKey={refresh}
+        processing={session.status === "processing"}
+      />
       {item && (
         <section className="panel saved-recording">
           <div className="section-heading">
@@ -359,14 +480,36 @@ export default function SessionMedia({
                         });
                       }
                     }}
-                    onError={() => setPlaybackError(true)}
+                    onTimeUpdate={() => {
+                      if (player.current)
+                        playbackPosition.current = player.current.currentTime;
+                    }}
+                    onError={() => {
+                      setPlaybackError(true);
+                      setCodecError(
+                        [3, 4].includes(player.current?.error?.code || 0),
+                      );
+                    }}
                   />
                 )}
                 <p className={playbackError ? "error" : "connection-note"}>
+                  {codecError &&
+                    "El navegador no pudo decodificar este formato. Prueba otro navegador o descarga el archivo. "}
                   {playbackError && "No se pudo reproducir el video. "}Si el
                   enlace caduca o la reproducción falla, pulsa «Renovar enlace
                   de reproducción».
                 </p>
+                {playback && (
+                  <a
+                    className="text-button"
+                    href={playback}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                  >
+                    Abrir / descargar video original
+                  </a>
+                )}
               </>
             )}
             {["queued", "processing", "failed"].includes(item.status) && (
@@ -396,66 +539,13 @@ export default function SessionMedia({
           </div>
         </section>
       )}
-      {capabilities && writable && (!item || item.status === "uploading") && (
-        <section className="panel import-video">
-          <h3>
-            {item
-              ? "Continuar una subida anterior"
-              : "¿Ya tienes el video grabado?"}
-          </h3>
-          <p>
-            {item
-              ? "Selecciona el mismo archivo. Un video diferente no debe usarse para recuperar esta reserva."
-              : "También puedes subir un WebM o MP4 desde tu equipo."}
-          </p>
-          <label>
-            Seleccionar video
-            <input
-              type="file"
-              accept="video/webm,video/mp4,.webm,.mp4"
-              disabled={uploadBusy || captureProtected}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void run(async () => {
-                  const blob = file.type
-                    ? file
-                    : new Blob([file], {
-                        type: file.name.toLowerCase().endsWith(".mp4")
-                          ? "video/mp4"
-                          : "video/webm",
-                      });
-                  validateVideo(blob, capabilities);
-                  if (
-                    item &&
-                    (item.size_bytes !== blob.size ||
-                      item.media_type !== blob.type.split(";")[0])
-                  )
-                    throw new Error(
-                      "El archivo no coincide con el tamaño y formato de la reserva pendiente.",
-                    );
-                  setExternalClip(URL.createObjectURL(blob));
-                });
-              }}
-            />
-          </label>
-          {externalClip && (
-            <RecordingUploadPanel
-              key={externalClip}
-              api={api}
-              sessionId={session.id}
-              clip={externalClip}
-              capabilities={capabilities}
-              existing={item}
-              onSaved={saved}
-              onBusy={setUploadBusy}
-            />
-          )}
-        </section>
-      )}
       {item?.status === "ready" && (
         <RecordingReport
+          key={item.id}
+          onOpenProcedure={onOpenProcedure}
+          sessionId={session.id}
+          canManage={canManage}
+          onChanged={() => setRefresh((n) => n + 1)}
           api={api}
           recordingId={item.id}
           canReview={canReview}

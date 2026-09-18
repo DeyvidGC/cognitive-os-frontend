@@ -1,21 +1,31 @@
-import { confirmAction } from "./confirmAction";
+import ReportFacts from "./ReportFacts";
+import RecordingInsights from "./RecordingInsights";
+import { confirmAction } from "../../shared/confirmAction";
 import { useEffect, useState } from "react";
-import type { Client } from "./api";
-import { json } from "./api";
+import type { Client } from "../../shared/api";
+import { ApiError, json } from "../../shared/api";
 import type { RecordingReport as Report, ReportContent } from "./recordings";
-import { formatDuration } from "./screenCapture";
-import { Badge, ErrorNotice, Icon } from "./ui";
-import { useAction } from "./utils";
+import { formatDuration } from "../capture/screenCapture";
+import { Badge, ErrorNotice, Icon } from "../../shared/ui";
+import { useAction } from "../../shared/utils";
 export default function RecordingReport({
   api,
+  onOpenProcedure,
   recordingId,
   canReview,
+  canManage,
+  sessionId,
+  onChanged,
   onSeek,
   onDirty,
 }: {
   api: Client;
+  onOpenProcedure: (procedureId: string, versionId: string) => Promise<void>;
   recordingId: string;
   canReview: boolean;
+  canManage: boolean;
+  sessionId: string;
+  onChanged: () => void;
   onSeek: (seconds: number) => void;
   onDirty: (dirty: boolean) => void;
 }) {
@@ -24,6 +34,7 @@ export default function RecordingReport({
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [message, setMessage] = useState("");
+  const [conflict, setConflict] = useState<Report | null>(null);
   const { run, busy, error } = useAction();
   const path = `/recordings/${recordingId}/report`;
   const dirty =
@@ -39,18 +50,31 @@ export default function RecordingReport({
     setReport(next);
     setDraft(structuredClone(next.content));
     setEditing(false);
+    setConflict(null);
+  }
+  async function updateReport(route: string, options: RequestInit) {
+    try {
+      return await api<Report>(route, options);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const latest = await api<Report>(path).catch(() => null);
+        setConflict(latest); // Keep the user's draft and revision; never overwrite newer content.
+      }
+      throw e;
+    }
   }
   useEffect(() => {
     void run(load);
   }, [api, path]); // eslint-disable-line react-hooks/exhaustive-deps
   async function review(decision: string) {
     if (!report) return;
-    const next = await api<Report>(
+    const next = await updateReport(
       `${path}/review`,
       json({ revision: report.revision, decision, feedback }),
     );
     setReport(next);
     setDraft(structuredClone(next.content));
+    onChanged();
     setMessage(
       decision === "approved"
         ? "Informe aprobado. Queda disponible para consulta."
@@ -70,6 +94,20 @@ export default function RecordingReport({
       </div>
       <div className="report-body">
         <ErrorNotice error={error} />
+        {conflict && (
+          <div className="info">
+            <strong>
+              La API tiene la revisión {conflict.revision}. Tus cambios locales
+              se conservan.
+            </strong>
+            <details>
+              <summary>Ver contenido actual del servidor</summary>
+              <h3>{conflict.content.title}</h3>
+              <p>{conflict.content.summary}</p>
+              <pre>{conflict.content.report}</pre>
+            </details>
+          </div>
+        )}
         {message && (
           <div role="status" className="success">
             {message}
@@ -82,9 +120,9 @@ export default function RecordingReport({
             onClick={async () => {
               if (
                 !dirty ||
-                await confirmAction(
+                (await confirmAction(
                   "Se descartarán tus cambios locales para cargar la revisión actual. ¿Continuar?",
-                )
+                ))
               )
                 void run(load);
             }}
@@ -106,6 +144,16 @@ export default function RecordingReport({
                 {report.sampling.audio_analyzed ? "analizado" : "no analizado"}
               </span>
             </div>
+            <RecordingInsights
+              api={api}
+              report={report}
+              sessionId={sessionId}
+              canManage={canManage}
+              dirty={dirty}
+              onSeek={onSeek}
+              onChanged={onChanged}
+              onOpenProcedure={onOpenProcedure}
+            />
             {report.feedback && (
               <div className="info">
                 Comentario de revisión: {report.feedback}
@@ -124,7 +172,7 @@ export default function RecordingReport({
               onSubmit={(e) => {
                 e.preventDefault();
                 void run(async () => {
-                  const next = await api<Report>(
+                  const next = await updateReport(
                     path,
                     json({ revision: report.revision, content: draft }, "PUT"),
                   );
@@ -182,6 +230,16 @@ export default function RecordingReport({
                   </>
                 )}
                 <h3>Instrucciones y momentos del video</h3>
+                {draft.business_rules && draft.business_rules.length > 0 && (
+                  <section className="business-rules">
+                    <h3>Reglas de negocio</h3>
+                    <ReportFacts
+                      facts={draft.business_rules}
+                      report={report}
+                      onSeek={onSeek}
+                    />
+                  </section>
+                )}
                 <div className="report-instructions">
                   {draft.instructions.map((step, index) => (
                     <article key={index}>
@@ -241,6 +299,15 @@ export default function RecordingReport({
                           </>
                         )}
                         <div className="time-sources">
+                          {step.text_sources?.map((source) => (
+                            <span className="time-source" key={source}>
+                              {source === "transcript"
+                                ? "Transcripción"
+                                : source === "notes"
+                                  ? "Notas"
+                                  : "Aclaraciones"}
+                            </span>
+                          ))}
                           {step.frame_indices.map((frameIndex) => {
                             const frame = report.sampling.frames[frameIndex];
                             return frame ? (
@@ -263,7 +330,7 @@ export default function RecordingReport({
                         {editing && (
                           <fieldset className="source-selection">
                             <legend>
-                              Momentos que respaldan este paso (al menos uno)
+                              Fuentes que respaldan este paso (al menos una)
                             </legend>
                             {report.sampling.frames.map((frame, frameIndex) => (
                               <label className="checkbox" key={frameIndex}>
@@ -278,7 +345,10 @@ export default function RecordingReport({
                                       : step.frame_indices.filter(
                                           (i) => i !== frameIndex,
                                         );
-                                    if (indices.length)
+                                    if (
+                                      indices.length ||
+                                      step.text_sources?.length
+                                    )
                                       setDraft({
                                         ...draft,
                                         instructions: draft.instructions.map(
@@ -291,6 +361,44 @@ export default function RecordingReport({
                                   }}
                                 />
                                 {formatDuration(frame.timestamp_ms / 1000)}
+                              </label>
+                            ))}
+                            {report.sampling.text_sources?.map((source) => (
+                              <label className="checkbox" key={source}>
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    step.text_sources?.includes(source) || false
+                                  }
+                                  onChange={(event) => {
+                                    const sources = event.target.checked
+                                      ? [...(step.text_sources || []), source]
+                                      : (step.text_sources || []).filter(
+                                          (value) => value !== source,
+                                        );
+                                    if (
+                                      sources.length ||
+                                      step.frame_indices.length
+                                    )
+                                      setDraft({
+                                        ...draft,
+                                        instructions: draft.instructions.map(
+                                          (value, i) =>
+                                            i === index
+                                              ? {
+                                                  ...value,
+                                                  text_sources: sources,
+                                                }
+                                              : value,
+                                        ),
+                                      });
+                                  }}
+                                />
+                                {source === "transcript"
+                                  ? "Transcripción"
+                                  : source === "notes"
+                                    ? "Notas"
+                                    : "Aclaraciones"}
                               </label>
                             ))}
                           </fieldset>
@@ -324,10 +432,24 @@ export default function RecordingReport({
                         ))}
                       </ul>
                       <small>
-                        Revisa las preguntas de la sesión para resolver estas dudas antes de aprobar.
+                        Revisa las preguntas de la sesión para resolver estas
+                        dudas antes de aprobar.
                       </small>
                     </div>
                   )
+                )}
+                {draft.exceptions && draft.exceptions.length > 0 && (
+                  <details className="report-extra">
+                    <summary>
+                      Excepciones e información adicional (
+                      {draft.exceptions.length})
+                    </summary>
+                    <ReportFacts
+                      facts={draft.exceptions}
+                      report={report}
+                      onSeek={onSeek}
+                    />
+                  </details>
                 )}
                 {editing && (
                   <button className="primary" disabled={!dirty}>
@@ -378,10 +500,6 @@ export default function RecordingReport({
                 </div>
               </div>
             )}
-            <div className="connection-note">
-              <Icon name="book" size={15} />
-              Aprobar el informe no publica un procedimiento. La conversión y su revisión editorial son pasos separados, pendientes de integrar en esta vista.
-            </div>
           </>
         )}
       </div>

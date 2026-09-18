@@ -37,11 +37,13 @@ const steps = new Map();
 const tutorials = new Map();
 const events = new Map();
 const questions = new Map();
+questions.set(sessions[1].id, [{ id: 'demo-question', question: '¿Qué se hace si la identificación no coincide?', answer: null }]);
 const evidences = new Map();
 sessions[1].status = 'completed';
 const demoRecording = { id: '30000000-0000-4000-8000-000000000001', session_id: sessions[1].id, media_type: 'video/webm', size_bytes: 1200000, status: 'ready', created_at: now, uploaded_at: now, error_code: null };
 let demoReport = { recording_id: demoRecording.id, revision: 1, review_status: 'pending', feedback: null, content: { title: 'Validación de documentos del cliente', summary: 'Revisión de la identificación antes de registrar la solicitud.', report: 'Se identificaron dos pasos que requieren revisión humana. Este es un informe de prueba.', instructions: [{ instruction: 'Abrir la ficha del cliente', expected_result: 'La ficha muestra los datos registrados.', frame_indices: [0] }, { instruction: 'Comparar la identificación con el documento recibido', expected_result: 'El número y nombre coinciden.', frame_indices: [1, 2] }], uncertainties: ['Confirmar qué hacer si la identificación no coincide.'] }, sampling: { frames: [{ index: 0, timestamp_ms: 0 }, { index: 1, timestamp_ms: 10000 }, { index: 2, timestamp_ms: 20000 }], duration_ms: 25000, audio_analyzed: false } };
 let requests = 0;
+const reportHistory = [];
 const server = http.createServer(async (req, res) => {
   function send(value, status = 200) {
     res.writeHead(status, { "Content-Type": "application/json" });
@@ -104,12 +106,35 @@ const server = http.createServer(async (req, res) => {
     if (reader && path.startsWith("/learning-sessions"))
       return send({ detail: "Capture access denied" }, 403);
     requests++;
+    if (path === `/recordings/${demoRecording.id}/transcript`) return send({ text: "Comprueba que el nombre y el número coincidan.", analyzed: true, audio_present: true, revision: demoReport.revision, exclusion_reason: null });
+    if (path === `/recordings/${demoRecording.id}/report/history`) return send(reportHistory);
+    if (path === `/recordings/${demoRecording.id}/flow/bpmn`) {
+      const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+      const nodes = [{ id: 'start', type: 'startEvent', name: 'Inicio' }, ...demoReport.content.instructions.map((step, index) => ({ id: `step-${index}`, type: 'task', name: step.instruction })), { id: 'end', type: 'endEvent', name: 'Fin' }];
+      const flows = nodes.slice(1).map((node, index) => ({ id: `flow-${index}`, source: nodes[index].id, target: node.id }));
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions" targetNamespace="http://example.test/bpmn"><bpmn:process id="Process" isExecutable="false">${nodes.map(node => `<bpmn:${node.type} id="${node.id}" name="${escape(node.name)}"/>`).join('')}${flows.map(flow => `<bpmn:sequenceFlow id="${flow.id}" sourceRef="${flow.source}" targetRef="${flow.target}"/>`).join('')}</bpmn:process><bpmndi:BPMNDiagram id="Diagram"><bpmndi:BPMNPlane id="Plane" bpmnElement="Process">${nodes.map((node, index) => `<bpmndi:BPMNShape id="shape-${node.id}" bpmnElement="${node.id}"><dc:Bounds x="200" y="${100 + index * 190}" width="160" height="80"/></bpmndi:BPMNShape>`).join('')}${flows.map((flow, index) => `<bpmndi:BPMNEdge id="edge-${flow.id}" bpmnElement="${flow.id}"><di:waypoint x="280" y="${180 + index * 190}"/><di:waypoint x="280" y="${290 + index * 190}"/></bpmndi:BPMNEdge>`).join('')}</bpmndi:BPMNPlane></bpmndi:BPMNDiagram></bpmn:definitions>`;
+      return send({ xml, revision: demoReport.revision });
+    }
+    if (path === `/recordings/${demoRecording.id}/index`) return send({ indexed: demoReport.review_status === "approved", chunks: 3, revision: demoReport.revision });
+    if (path === `/recordings/${demoRecording.id}/flow`) {
+      const nodes = [{ id: "start", type: "input", data: { label: "Inicio" } }, ...demoReport.content.instructions.map((step, i) => ({ id: `step-${i}`, type: "default", data: { label: step.instruction, expected_result: step.expected_result, frames: step.frame_indices.map((n) => demoReport.sampling.frames[n]), text_sources: ["notes"] } })), { id: "end", type: "output", data: { label: "Fin" } }];
+      return send({ nodes, edges: nodes.slice(1).map((node, i) => ({ id: `edge-${i}`, source: nodes[i].id, target: node.id })), revision: demoReport.revision, review_status: demoReport.review_status, title: demoReport.content.title });
+    }
+    if (path === `/recordings/${demoRecording.id}/procedure`) {
+      if (demoReport.review_status !== "approved") return send({ detail: "Approve report first" }, 409);
+      const procedure = procedures[0];
+      let version = versions.get(procedure.id)?.[0];
+      if (!version) { version = { id: randomUUID(), procedure_id: procedure.id, version_number: 1, status: "draft", summary: demoReport.content.summary, source_session_id: demoRecording.session_id }; versions.set(procedure.id, [version]); }
+      return send(version, 201);
+    }
+    if (path === "/recordings/search") return send({ results: demoReport.review_status === "approved" ? [{ id: "hit-1", recording_id: demoRecording.id, session_id: demoRecording.session_id, report_revision: demoReport.revision, content: demoReport.content.summary, score: .81, source: { kind: "summary", frame_indices: [] } }] : [] });
     if (path === '/recordings/capabilities') return send({ media_types: ['video/webm', 'video/mp4'], max_bytes: 262144000, max_seconds: 600, frame_interval_seconds: 10, storage_configured: false, analysis_mode: 'sampled_frames_after_upload', audio_supported: false, max_recordings_per_session: 1 });
     if (path === `/recordings/${demoRecording.id}`) return send(demoRecording);
     if (path === `/recordings/${demoRecording.id}/report` && method === 'GET') return send(demoReport);
     if (path === `/recordings/${demoRecording.id}/report` && method === 'PUT') {
       if (body.revision !== demoReport.revision) return send({ detail: 'Report changed; reload the latest revision' }, 409);
       if (demoReport.review_status === 'approved') return send({ detail: 'Approved report is immutable' }, 409);
+      reportHistory.unshift({ revision: demoReport.revision, created_at: now, snapshot: structuredClone(demoReport) });
       demoReport = { ...demoReport, revision: demoReport.revision + 1, content: body.content, review_status: 'pending' }; return send(demoReport);
     }
     if (path === `/recordings/${demoRecording.id}/report/review`) {
@@ -150,6 +175,8 @@ const server = http.createServer(async (req, res) => {
       const session = sessions.find((s) => s.id === id);
       assert.ok(session);
       if (!sub) return send(session);
+      if (sub === "jobs") return send(session.id === demoRecording.session_id ? [{ id: "demo-job", kind: "analyze_recording", status: "completed", attempts: 1, session_id: session.id, recording_id: demoRecording.id, version_id: null }] : []);
+      if (sub === "agent") return send([{ message_id: "demo-turn", text: "¿Qué debo verificar?", status: "completed", reply: { observation: "El proceso incluye comparar documentos.", answer: "Verifica nombre y número de identificación.", questions: ["¿Qué se hace si no coincide?"] } }]);
       if (sub === 'recordings' && method === 'GET') return send(session.id === demoRecording.session_id ? [demoRecording] : []);
       if (sub === "finish") {
         session.status = "processing";
@@ -189,6 +216,7 @@ const server = http.createServer(async (req, res) => {
       list.push(q);
       return send(q, 201);
     }
+    if (parts[0] === "procedures" && !sub) return send(procedures.find((p) => p.id === id));
     if (parts[0] === "procedures" && sub === "versions") {
       const list = versions.get(id) || [];
       versions.set(id, list);

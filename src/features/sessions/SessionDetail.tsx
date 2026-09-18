@@ -1,7 +1,8 @@
-import { confirmAction } from "./confirmAction";
-import { date, useAction } from "./utils";
+import VoiceInput from "../../shared/VoiceInput";
+import { confirmAction } from "../../shared/confirmAction";
+import { date, useAction } from "../../shared/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { allPages, json } from "./api";
+import { allPages, json } from "../../shared/api";
 import type {
   Clarification,
   Client,
@@ -9,19 +10,23 @@ import type {
   Evidence,
   Membership,
   Session,
-} from "./api";
-import { Badge, Empty, ErrorNotice, Icon, Modal } from "./ui";
-import SessionMedia from "./SessionMedia";
-import type { Recording, Job } from "./recordings";
+} from "../../shared/api";
+import { Badge, Empty, ErrorNotice, Icon, Modal } from "../../shared/ui";
+import SessionMedia from "../recordings/SessionMedia";
+import type { Recording, Job } from "../recordings/recordings";
 import JobProgress from "./JobProgress";
 export default function SessionDetail({
   api,
+  onNewSession,
+  onOpenProcedure,
   session,
   membership,
   userId,
   onCaptureProtectedChange,
 }: {
+  onNewSession: () => void;
   api: Client;
+  onOpenProcedure: (procedureId: string, versionId: string) => Promise<void>;
   session: Session;
   membership: Membership;
   userId: string;
@@ -32,6 +37,7 @@ export default function SessionDetail({
   const [job, setJob] = useState<Job | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<Clarification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -109,7 +115,14 @@ export default function SessionDetail({
             {current.application_name} · {date(current.created_at)}
           </p>
         </div>
-        <Badge status={current.status} />
+        <div className="button-group">
+          <Badge status={current.status} />
+          {(membership.role === "owner" || membership.role === "author") && (
+            <button type="button" className="primary" onClick={onNewSession}>
+              Nueva sesión de aprendizaje
+            </button>
+          )}
+        </div>
       </div>
       <ErrorNotice error={error || loadError} />
       {loadError && (
@@ -142,6 +155,7 @@ export default function SessionDetail({
       {job && <JobProgress api={api} initial={job} />}
       {!loaded && !loadError && <p role="status">Cargando sesión…</p>}
       <SessionMedia
+        onOpenProcedure={onOpenProcedure}
         api={api}
         session={current}
         writable={canWrite}
@@ -331,15 +345,18 @@ export default function SessionDetail({
                           });
                         }}
                       >
-                        <label>
-                          Respuesta
-                          <textarea
-                            name="answer"
-                            required
-                            maxLength={10000}
-                            disabled={busy}
-                          />
-                        </label>
+                        <VoiceInput
+                          name="answer"
+                          question={q.question}
+                          value={answers[q.id] || ""}
+                          disabled={busy}
+                          onChange={(value) =>
+                            setAnswers((previous) => ({
+                              ...previous,
+                              [q.id]: value,
+                            }))
+                          }
+                        />
                         <button className="secondary" disabled={busy}>
                           Guardar respuesta
                         </button>
@@ -431,9 +448,9 @@ export default function SessionDetail({
               void run(async () => {
                 if (
                   captureProtected &&
-                  !await confirmAction(
+                  !(await confirmAction(
                     "Finalizar detendrá la pantalla y eliminará el video local de esta vista. ¿Ya descargaste tu copia y quieres finalizar?",
-                  )
+                  ))
                 )
                   return;
                 setJob(await api<Job>(`${path}/finish`, { method: "POST" }));

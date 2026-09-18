@@ -1,0 +1,228 @@
+.agent-floating-workspace {
+  min-width: 0;
+}
+.floating-launch {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.floating-launch-hint {
+  font-size: 13px;
+  color: #66796e;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.floating-agent {
+  color: #274b3e;
+  background: #fff;
+  border: 1px solid #dfe8e1;
+  border-radius: 22px;
+  overflow: auto;
+  font-family: inherit;
+}
+.floating-agent.is-docked {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 48px);
+  box-shadow: 0 16px 60px #163c3230;
+  z-index: 100;
+}
+.agent-pip-body {
+  margin: 0;
+  padding: 0;
+  background: #f4f7f3;
+  min-width: 0;
+}
+.floating-agent.is-external {
+  border-radius: 0;
+  border: 0;
+  min-height: 100dvh;
+  width: 100%;
+}
+.floating-agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf1ec;
+}
+.floating-agent-header > span {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  font-weight: 650;
+}
+.floating-agent-header > div {
+  display: flex;
+  gap: 6px;
+}
+.floating-agent-header button {
+  border: 0;
+  background: #f3f6f2;
+  color: #385b4b;
+  border-radius: 9px;
+  width: 32px;
+  height: 32px;
+  font-size: 24px;
+  cursor: pointer;
+}
+.floating-agent-identity {
+  text-align: center;
+  padding: 22px 16px 12px;
+}
+.model-avatar {
+  width: 92px;
+  height: 92px;
+}
+.floating-agent-identity h3 {
+  font-size: 18px;
+  margin: 12px 0 8px;
+}
+.floating-agent-identity p {
+  font-size: 13px;
+  color: #647a6d;
+  margin: 0;
+}
+.floating-agent-identity p span {
+  font-variant-numeric: tabular-nums;
+}
+.floating-agent-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 16px;
+}
+.floating-agent-controls button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid #dfe7df;
+  border-radius: 14px;
+  background: #f7f9f5;
+  color: #345b48;
+  padding: 13px 8px;
+  cursor: pointer;
+}
+.floating-agent-controls button.mic-active {
+  background: #306452;
+  color: #fff;
+  border-color: #306452;
+}
+.floating-agent button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.floating-agent button:focus-visible {
+  outline: 3px solid #7bb395;
+  outline-offset: 2px;
+}
+.floating-agent-help {
+  font-size: 13px;
+  color: #6f7d73;
+  line-height: 1.6;
+  padding: 0 18px;
+}
+.floating-agent-error {
+  padding: 10px 18px;
+  color: #963d32;
+  font-size: 13px;
+}
+.floating-chat-toggle {
+  width: calc(100% - 32px);
+  margin: 6px 16px 16px;
+  display: flex;
+  justify-content: space-between;
+  border: 1px solid #dfe7df;
+  border-radius: 12px;
+  background: #f5f8f1;
+  padding: 12px;
+  color: #345b48;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.floating-conversation:not([hidden]) {
+  padding: 0 12px 14px;
+}
+.floating-conversation .agent-companion {
+  border-radius: 12px;
+  min-width: 0;
+}
+.floating-conversation .agent-heading,
+.floating-conversation .agent-mode-note {
+  display: none;
+}
+.floating-conversation .conversation-history {
+  max-height: 200px;
+}
+@media (max-width: 480px) {
+  .floating-agent.is-docked {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+.floating-agent.is-docked {
+  width: 410px;
+  border-radius: 16px;
+}
+.floating-agent-header {
+  padding: 7px 10px;
+}
+.floating-agent-header button {
+  width: 27px;
+  height: 27px;
+}
+.floating-agent-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 8px 12px 0;
+}
+.model-avatar {
+  width: 32px;
+  height: 32px;
+}
+.floating-agent-identity h3 {
+  font-size: 13px;
+  margin: 0;
+}
+.floating-agent-identity p {
+  font-size: 12px;
+  margin-left: auto;
+}
+.floating-agent-controls {
+  padding: 9px 12px;
+  gap: 6px;
+}
+.floating-agent-controls button {
+  flex-direction: row;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 9px 6px;
+  gap: 5px;
+  font-size: 12px;
+}
+.floating-chat-toggle {
+  margin: 0 12px 9px;
+  width: calc(100% - 24px);
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+}
+.floating-agent.is-external {
+  min-height: 0;
+}
+.floating-launch {
+  margin-bottom: 10px;
+}
+.agent-floating-workspace > .text-button {
+  margin-bottom: 12px;
+}

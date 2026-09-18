@@ -1,10 +1,11 @@
+import VoiceInput from "../../shared/VoiceInput";
 import { useEffect, useRef, useState } from "react";
-import { allPages, json } from "./api";
-import type { Client, Clarification, Event, Session } from "./api";
-import { ErrorNotice, Icon } from "./ui";
-import { useAction } from "./utils";
+import { allPages, ApiError, json } from "../../shared/api";
+import type { Client, Clarification, Event, Session } from "../../shared/api";
+import { ErrorNotice, Icon } from "../../shared/ui";
+import { useAction } from "../../shared/utils";
 import LiveAgent from "./LiveAgent";
-import type { CaptureState } from "./screenCapture";
+import type { CaptureState } from "../capture/screenCapture";
 export default function AgentConversation({
   api,
   session,
@@ -23,6 +24,7 @@ export default function AgentConversation({
   const [events, setEvents] = useState<Event[]>([]);
   const [questions, setQuestions] = useState<Clarification[]>([]);
   const [text, setText] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"conversation" | "questions">("conversation");
   const [connection, setConnection] = useState("Cargando contexto…");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -31,6 +33,8 @@ export default function AgentConversation({
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
+    let failures = 0;
+    let stopped = false;
     async function load() {
       try {
         const [messages, qs] = await Promise.all([
@@ -43,12 +47,15 @@ export default function AgentConversation({
           setEvents(messages);
           setQuestions(qs);
           setConnection("Contexto sincronizado");
+          failures = 0;
         }
-      } catch {
+      } catch (e) {
+        failures++;
+        stopped = e instanceof ApiError && [401, 403, 404].includes(e.status);
         if (active) setConnection("Sin sincronizar · Reintenta");
       } finally {
-        if (active && session.status === "capturing")
-          timer = setTimeout(load, 8000);
+        if (active && !stopped && session.status === "capturing")
+          timer = setTimeout(load, Math.min(30000, 8000 * 2 ** failures));
       }
     }
     void load();
@@ -71,9 +78,15 @@ export default function AgentConversation({
       </div>
       <span className="agent-status">
         <i />
-        Análisis al finalizar el video
+        Conversación en vivo y contexto del aprendizaje
       </span>
-      <LiveAgent api={api} sessionId={session.id} allowed={writable} capture={capture} onReply={onContextChange} />
+      <LiveAgent
+        api={api}
+        sessionId={session.id}
+        allowed={writable}
+        capture={capture}
+        onReply={onContextChange}
+      />
       <div
         className="conversation-tabs"
         role="tablist"
@@ -143,15 +156,15 @@ export default function AgentConversation({
                     });
                   }}
                 >
-                  <label>
-                    Tu respuesta
-                    <textarea
-                      name="answer"
-                      required
-                      maxLength={10000}
-                      disabled={busy}
-                    />
-                  </label>
+                  <VoiceInput
+                    question={q.question}
+                    name="answer"
+                    value={answers[q.id] || ""}
+                    disabled={busy}
+                    onChange={(value) =>
+                      setAnswers((previous) => ({ ...previous, [q.id]: value }))
+                    }
+                  />
                   <button className="secondary" disabled={busy}>
                     Responder
                   </button>

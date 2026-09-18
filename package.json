@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "bpmn-js": "^18.28.0",
+    "lucide-react": "^1.47.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

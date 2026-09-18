@@ -74,6 +74,11 @@ const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(
   "",
 );
 const translations: Record<string, string> = {
+  "Resolve pending clarifications before exporting": "Responde todas las aclaraciones antes de generar el documento.",
+  "Revise the rejected report before exporting": "Corrige el informe rechazado antes de exportarlo.",
+  "Document exports are busy; retry shortly": "Hay documentos en preparación. Inténtalo de nuevo en un momento.",
+  "Document generation failed; verify the video and retry": "No se pudo generar el documento. Verifica el video e inténtalo de nuevo.",
+  "Video captures no longer match the analyzed evidence": "Las capturas no coinciden con el análisis. Regenera el informe antes de exportar.",
   "Invalid credentials": "El correo o la contraseña no son correctos.",
   "Registration is disabled":
     "El registro está deshabilitado en la API. Contacta al administrador.",
@@ -146,10 +151,25 @@ export function client(token = "", organization = "", onExpired?: () => void) {
   }
   return Object.assign(request, {
     agentSocket(sessionId: string) {
-      const url = new URL(`${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/live`, window.location.href);
+      const url = new URL(
+        `${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/live`,
+        window.location.href,
+      );
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
       const socket = new WebSocket(url);
-      socket.addEventListener("open", () => socket.send(JSON.stringify({ type: "auth", token, organization_id: organization, consent: true })), { once: true });
+      socket.addEventListener(
+        "open",
+        () =>
+          socket.send(
+            JSON.stringify({
+              type: "auth",
+              token,
+              organization_id: organization,
+              consent: true,
+            }),
+          ),
+        { once: true },
+      );
       return socket;
     },
   });

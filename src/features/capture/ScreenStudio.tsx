@@ -1,13 +1,16 @@
-import { confirmAction } from "./confirmAction";
+import { confirmAction } from "../../shared/confirmAction";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
-import type { Client } from "./api";
-import type { Recording, RecordingCapabilities } from "./recordings";
-import RecordingUploadPanel from "./RecordingUploadPanel";
+import type { Client } from "../../shared/api";
+import type {
+  Recording,
+  RecordingCapabilities,
+} from "../recordings/recordings";
+import RecordingUploadPanel from "../recordings/RecordingUploadPanel";
 import FloatingAgent from "./FloatingAgent";
 import { ScreenCapture, formatDuration } from "./screenCapture";
 import type { CaptureState } from "./screenCapture";
-import { ErrorNotice, Icon } from "./ui";
+import { ErrorNotice, Icon } from "../../shared/ui";
 import "./ScreenStudio.css";
 
 export default function ScreenStudio({
@@ -29,6 +32,7 @@ export default function ScreenStudio({
   agentPanel: ReactNode | ((state: CaptureState) => ReactNode);
   onProtectedChange: (value: boolean) => void;
 }) {
+  const [microphoneDefault, setMicrophoneDefault] = useState(true);
   const [capture] = useState(() => new ScreenCapture());
   const state = useSyncExternalStore(capture.subscribe, capture.getSnapshot);
   const video = useRef<HTMLVideoElement>(null);
@@ -36,7 +40,8 @@ export default function ScreenStudio({
   const { phase, stream, clip } = state;
   const protectedState = phase !== "idle";
   useEffect(() => {
-    if (clip) studio.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (clip)
+      studio.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [clip]);
   useEffect(() => () => capture.dispose(), [capture]);
   useEffect(() => {
@@ -56,7 +61,9 @@ export default function ScreenStudio({
     const element = video.current;
     if (!element) return;
     element.srcObject = stream;
-    return () => { element.srcObject = null; };
+    return () => {
+      element.srcObject = null;
+    };
   }, [stream]);
   const status = {
     idle: "Sin pantalla compartida",
@@ -70,7 +77,10 @@ export default function ScreenStudio({
   const hasCapture = !!stream;
   useEffect(() => {
     if (capabilities)
-      capture.setLimits(capabilities.max_bytes, capabilities.max_seconds);
+      capture.setLimits(
+        capabilities.max_bytes,
+        Math.min(1800, capabilities.max_seconds),
+      );
   }, [capture, capabilities]);
   return (
     <section
@@ -165,17 +175,27 @@ export default function ScreenStudio({
                   className="primary"
                   type="button"
                   disabled={phase === "selecting"}
-                  onClick={() => void capture.share()}
+                  onClick={async () => {
+                    await capture.share();
+                    if (microphoneDefault) await capture.enableMicrophone();
+                  }}
                 >
                   <Icon name="share" size={17} />
                   {phase === "selecting"
                     ? "Elige en el navegador…"
                     : "Compartir pantalla"}
                 </button>
-                <small>
-                  Solo se captura la superficie que elijas. Puedes añadir tu
-                  micrófono antes de grabar.
-                </small>
+                <small>Solo se captura la superficie que elijas.</small>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={microphoneDefault}
+                    onChange={(event) =>
+                      setMicrophoneDefault(event.target.checked)
+                    }
+                  />{" "}
+                  Activar micrófono al compartir (requiere permiso)
+                </label>
               </div>
             )}
             {(phase === "recording" || phase === "paused") && (
@@ -315,10 +335,11 @@ export default function ScreenStudio({
             </span>
           </div>
         </div>
-        <FloatingAgent capture={capture} state={state}>{typeof agentPanel === "function" ? agentPanel(state) : agentPanel}</FloatingAgent>
+        <FloatingAgent capture={capture} state={state}>
+          {typeof agentPanel === "function" ? agentPanel(state) : agentPanel}
+        </FloatingAgent>
       </div>
       <ErrorNotice error={state.error} />
-
     </section>
   );
 }
