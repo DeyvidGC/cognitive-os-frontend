@@ -139,7 +139,12 @@ export default function FloatingAgent({
   }
   function close() {
     inlineHost.current?.append(conversationHost);
-    ownedWindow.current?.close();
+    const window = ownedWindow.current;
+    // Null the ref before closing: the pagehide listener below only re-docks
+    // the panel inline when it fires for a window we still think is open, so
+    // this deliberate dismiss must not race with that async event.
+    ownedWindow.current = null;
+    window?.close();
     setPip(null);
     setFloating(false);
   }

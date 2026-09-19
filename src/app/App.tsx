@@ -8,6 +8,11 @@ import Auth from "../features/auth/Auth";
 import SessionDetail from "../features/sessions/SessionDetail";
 import ProcedureDetail from "../features/procedures/ProcedureDetail";
 import RecordingSearch from "../features/knowledge/RecordingSearch";
+import Chatbot from "../features/chatbot/Chatbot";
+import Policies from "../features/policies/Policies";
+import UsageDashboard from "../features/dashboard/UsageDashboard";
+import HomeActivity from "../features/dashboard/HomeActivity";
+import Master from "../features/master/Master";
 import { Badge, Empty, ErrorNotice, Icon, Modal } from "../shared/ui";
 import "./App.css";
 type Page =
@@ -17,7 +22,8 @@ type Page =
   | "procedures"
   | "knowledge"
   | "chatbot"
-  | "policies";
+  | "policies"
+  | "master";
 const navigationGroups: {
   label: string;
   items: { id: Page; label: string; icon: string }[];
@@ -44,24 +50,14 @@ const navigationGroups: {
       { id: "policies", label: "Analizador de pólizas", icon: "shield" },
     ],
   },
+  {
+    label: "PLATAFORMA",
+    items: [{ id: "master", label: "Agente maestro", icon: "spark" }],
+  },
 ];
 const navigation = navigationGroups.flatMap((g) => g.items);
-/* Páginas sin backend propio todavía: se muestran con una ficha honesta de
-   "próximamente" en vez de datos simulados. */
-const comingSoon: Partial<Record<Page, { title: string; body: string }>> = {
-  chatbot: {
-    title: "El chatbot conversacional está en construcción",
-    body: "Responderá con lo aprendido en sesiones y procedimientos publicados, citando siempre su fuente. Mientras tanto, usa Buscar en videos o Explorar conocimiento para encontrar fragmentos relevantes.",
-  },
-  policies: {
-    title: "El analizador de pólizas está en construcción",
-    body: "Leerá pólizas desde tu almacenamiento y permitirá subir una puntual para preguntarle directamente. Todavía no hay datos ni respaldo de backend para este módulo.",
-  },
-  dashboard: {
-    title: "El dashboard de uso está en construcción",
-    body: "Mostrará qué se pregunta más, qué queda sin responder y dónde falta enseñarle algo a la IA. Todavía no hay datos ni respaldo de backend para este módulo.",
-  },
-};
+/* Colores planos que rotan en la galería de Tutoriales y flujos. */
+const procedureTones = ["mint", "peach", "lavender", "sky"];
 function App() {
   const [auth, setAuth] = useState<{ token: string; user: User } | null>(null);
   const [notice, setNotice] = useState("");
@@ -203,10 +199,11 @@ function Workspace({
             navigate("overview");
           }}
         >
-          <span className="brand-mark">IS</span>
-          <span className="brand-text">
-            <strong>Inventiva</strong>
-            <small>Cognitive</small>
+          <span className="brand-mark">
+            <Icon name="spark" size={19} />
+          </span>
+          <span className="brand-word">
+            cognitive<span className="brand-os">OS</span>
           </span>
         </a>
         <label className="organization">
@@ -233,15 +230,18 @@ function Workspace({
             <span className="organization-caret">▾</span>
           </span>
         </label>
-        {navigationGroups.map((group) => (
-          <div key={group.label} className="nav-group">
-            <span className="nav-label">{group.label}</span>
-            <nav>
-              {group.items
-                .filter(
-                  (n) => n.id !== "sessions" || membership?.role !== "reader",
-                )
-                .map((n) => (
+        {navigationGroups.map((group) => {
+          const items = group.items.filter(
+            (n) =>
+              ((n.id !== "sessions" && n.id !== "dashboard") ||
+                membership?.role !== "reader") &&
+              (n.id !== "master" || user.is_platform_staff),
+          );
+          return items.length ? (
+            <div key={group.label} className="nav-group">
+              <span className="nav-label">{group.label}</span>
+              <nav>
+                {items.map((n) => (
                   <button
                     key={n.id}
                     className={page === n.id ? "nav-item active" : "nav-item"}
@@ -255,9 +255,10 @@ function Workspace({
                     )}
                   </button>
                 ))}
-            </nav>
-          </div>
-        ))}
+              </nav>
+            </div>
+          ) : null;
+        })}
         <div className="sidebar-bottom">
           <div className="profile">
             <span className="avatar">
@@ -308,9 +309,14 @@ function Workspace({
                       "Documenta, revisa y comparte una forma de hacer las cosas.",
                     knowledge:
                       "Encuentra respuestas en los procedimientos publicados de tu equipo.",
-                    chatbot: comingSoon.chatbot!.body,
-                    policies: comingSoon.policies!.body,
-                    dashboard: comingSoon.dashboard!.body,
+                    chatbot:
+                      "Resuelve dudas del día a día con respuestas citando la sesión o el documento de origen.",
+                    policies:
+                      "Lee pólizas desde tu almacenamiento o una carga puntual, y responde preguntas sobre su contenido.",
+                    dashboard:
+                      "Qué se pregunta más, qué queda sin responder, y dónde falta enseñarle algo a la IA.",
+                    master:
+                      "Aprende de todas las organizaciones a la vez, y explica en qué se parecen o difieren entre sí.",
                   }[page]
                 }
               </p>
@@ -473,6 +479,7 @@ function Workspace({
                       {
                         page: "sessions" as Page,
                         icon: "record",
+                        tone: "mint",
                         title: "Sesiones de aprendizaje",
                         body: "Comparte pantalla y enseña un proceso en vivo; la IA escucha, pregunta y anota reglas de negocio.",
                         core: true,
@@ -481,47 +488,79 @@ function Workspace({
                       {
                         page: "knowledge" as Page,
                         icon: "search",
+                        tone: "sky",
                         title: "Buscar en videos",
                         body: "Encuentra respuestas en los procedimientos publicados de tu equipo.",
                       },
                       {
                         page: "chatbot" as Page,
                         icon: "message",
+                        tone: "peach",
                         title: "Chatbot de conocimiento",
                         body: "Resuelve dudas del día a día con respuestas citando la sesión o el documento de origen.",
                       },
                       {
                         page: "procedures" as Page,
                         icon: "book",
+                        tone: "mint",
                         title: "Tutoriales y flujos",
                         body: "Catálogo de \"cómo se hace\", documentado paso a paso desde las sesiones grabadas.",
                       },
                       {
                         page: "policies" as Page,
                         icon: "shield",
+                        tone: "peach",
                         title: "Analizador de pólizas",
                         body: "Lee documentos desde tu almacenamiento o una carga puntual, y responde preguntas sobre su contenido.",
                       },
                       {
                         page: "dashboard" as Page,
                         icon: "chart",
+                        tone: "lavender",
                         title: "Dashboard de uso",
                         body: "Qué se pregunta más, qué quedó sin responder, y dónde falta enseñarle algo a la IA.",
+                        hidden: membership.role === "reader",
+                      },
+                      {
+                        page: "master" as Page,
+                        icon: "spark",
+                        tone: "",
+                        title: "Agente maestro",
+                        body: "Aprende de todas las organizaciones a la vez, y explica en qué se parecen o difieren entre sí.",
+                        special: true,
+                        hidden: !user.is_platform_staff,
                       },
                     ]
                       .filter((m) => !m.hidden)
                       .map((m) => (
                         <button
                           key={m.page}
-                          className={m.core ? "module-card core" : "module-card"}
+                          className={
+                            m.core
+                              ? "module-card core"
+                              : m.special
+                                ? "module-card special"
+                                : "module-card"
+                          }
                           onClick={() => navigate(m.page)}
                         >
                           <div className="module-card-top">
-                            <span className="module-icon">
+                            <span
+                              className={
+                                m.special
+                                  ? "module-icon special"
+                                  : `module-icon tone-${m.tone}`
+                              }
+                            >
                               <Icon name={m.icon} size={19} />
                             </span>
                             {m.core && (
                               <span className="badge badge-primary">Core</span>
+                            )}
+                            {m.special && (
+                              <span className="badge badge-platform">
+                                Plataforma
+                              </span>
                             )}
                           </div>
                           <h3>{m.title}</h3>
@@ -678,30 +717,72 @@ function Workspace({
                             />
                           )}
                         </div>
-                        <div className="procedure-grid">
+                        <div
+                          className={
+                            page === "procedures"
+                              ? "procedure-grid vivid"
+                              : "procedure-grid"
+                          }
+                        >
                           {(page === "overview"
                             ? visibleProcedures.slice(0, 3)
                             : visibleProcedures
-                          ).map((p) => (
+                          ).map((p, i) =>
+                            page === "procedures" ? (
+                              <button
+                                key={p.id}
+                                className="procedure-card vivid"
+                                onClick={async () => {
+                                  setSelected(p);
+                                  setPage("procedures");
+                                }}
+                              >
+                                <span
+                                  className={`procedure-banner tone-${procedureTones[i % procedureTones.length]}`}
+                                >
+                                  <Icon name="book" size={30} />
+                                </span>
+                                <div className="procedure-card-body">
+                                  <h3>{p.title}</h3>
+                                  <p>{p.scope}</p>
+                                  <footer>
+                                    {date(p.created_at)}
+                                    <Icon name="arrow" size={17} />
+                                  </footer>
+                                </div>
+                              </button>
+                            ) : (
+                              <button
+                                key={p.id}
+                                className="procedure-card"
+                                onClick={async () => {
+                                  setSelected(p);
+                                  setPage("procedures");
+                                }}
+                              >
+                                <span className="document-icon">
+                                  <Icon name="book" size={23} />
+                                </span>
+                                <h3>{p.title}</h3>
+                                <p>{p.scope}</p>
+                                <footer>
+                                  {date(p.created_at)}
+                                  <Icon name="arrow" size={17} />
+                                </footer>
+                              </button>
+                            ),
+                          )}
+                          {page === "procedures" && canWrite && (
                             <button
-                              key={p.id}
-                              className="procedure-card"
-                              onClick={async () => {
-                                setSelected(p);
-                                setPage("procedures");
-                              }}
+                              className="procedure-add-tile"
+                              onClick={() => setModal("procedure")}
                             >
-                              <span className="document-icon">
-                                <Icon name="book" size={23} />
+                              <span className="module-icon">
+                                <Icon name="plus" size={20} />
                               </span>
-                              <h3>{p.title}</h3>
-                              <p>{p.scope}</p>
-                              <footer>
-                                {date(p.created_at)}
-                                <Icon name="arrow" size={17} />
-                              </footer>
+                              Enseñar un proceso nuevo
                             </button>
-                          ))}
+                          )}
                         </div>
                         {!visibleProcedures.length && (
                           <Empty
@@ -812,23 +893,29 @@ function Workspace({
                         )}
                       </section>
                     )}
-                    {(page === "chatbot" ||
-                      page === "policies" ||
-                      page === "dashboard") && (
-                      <section className="panel">
-                        <Empty
-                          title={comingSoon[page]!.title}
-                          icon={
-                            page === "chatbot"
-                              ? "message"
-                              : page === "policies"
-                                ? "shield"
-                                : "chart"
-                          }
-                        >
-                          {comingSoon[page]!.body}
-                        </Empty>
-                      </section>
+                    {page === "chatbot" && (
+                      <Chatbot
+                        api={api}
+                        userInitials={user.display_name.slice(0, 2).toUpperCase()}
+                      />
+                    )}
+                    {page === "policies" && (
+                      <Policies
+                        api={api}
+                        canManage={membership.role !== "reader"}
+                      />
+                    )}
+                    {page === "dashboard" && membership.role !== "reader" && (
+                      <UsageDashboard api={api} canResolveGaps={true} />
+                    )}
+                    {page === "master" && user.is_platform_staff && (
+                      <Master api={api} />
+                    )}
+                    {page === "overview" && membership.role !== "reader" && (
+                      <HomeActivity
+                        api={api}
+                        organizationName={membership.organization_name}
+                      />
                     )}
                   </>
                 )

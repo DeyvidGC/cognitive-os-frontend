@@ -16,10 +16,11 @@ export default function Auth({
     <div className="auth-layout">
       <section className="auth-story">
         <a className="brand" href="/">
-          <span className="brand-mark">IS</span>
-          <span className="brand-text">
-            <strong>Inventiva</strong>
-            <small>Cognitive</small>
+          <span className="brand-mark">
+            <Icon name="spark" size={19} />
+          </span>
+          <span className="brand-word">
+            cognitive<span className="brand-os">OS</span>
           </span>
         </a>
         <div className="auth-message">

@@ -1,10 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Public+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 /*
-  Cognitive OS: identidad clara y cálida (Inventiva Solutions). Un solo tema,
-  sin variante oscura: superficie marfil, tinta verde-negra, acento teal para
-  acción/foco y terracota para llamados de atención. No es una preferencia
-  del sistema operativo, es la identidad del producto.
+  Cognitive OS: identidad clara y cálida. Un solo tema, sin variante oscura:
+  superficie marfil, tinta verde-negra, acento teal para acción/foco y
+  terracota para llamados de atención. No es una preferencia del sistema
+  operativo, es la identidad del producto.
 */
 :root {
   /* Superficies, de la más profunda a la más elevada */
@@ -39,6 +39,19 @@
 
   --danger: #a6321c;
   --danger-bg: #f5dfd8;
+
+  /*
+    Acentos de módulo: identidad de color plana (sin degradado) para los
+    íconos de la grilla de Inicio y la galería de Tutoriales y flujos.
+  */
+  --tone-mint-bg: #d9efe1;
+  --tone-mint-ink: #1f7a52;
+  --tone-peach-bg: #f8ddc4;
+  --tone-peach-ink: #b5602c;
+  --tone-lavender-bg: #e6def6;
+  --tone-lavender-ink: #6a4fa3;
+  --tone-sky-bg: #dbe8f3;
+  --tone-sky-ink: #2e6f95;
 
   --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --display: "Fraunces", ui-serif, Georgia, serif;

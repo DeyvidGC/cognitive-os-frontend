@@ -45,30 +45,32 @@
   background: var(--accent-2);
   color: #fff;
   border-radius: 10px;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 15px;
 }
-.brand-text {
+.brand-word {
   display: flex;
-  flex-direction: column;
-  line-height: 1.2;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
-}
-.brand-text strong {
   font-family: var(--display);
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: -0.3px;
   color: #fff;
+  text-transform: lowercase;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.brand-text small {
+.brand-os {
+  font-family: var(--sans);
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: #a9c7bf;
+  border: 1px solid #ffffff30;
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-weight: 700;
 }
 .organization {
   display: flex;
@@ -389,7 +391,7 @@ main {
 /* La métrica que pide algo de la persona se marca en ámbar, como los chips. */
 .stat.attention {
   border-color: #e9cd94;
-  background: linear-gradient(180deg, var(--inferido-bg), var(--surface-1) 70%);
+  background: var(--surface-1);
 }
 .stat.attention p,
 .stat.attention strong {
@@ -587,6 +589,10 @@ tr:last-child td {
   color: var(--accent-deep);
   background: var(--accent-soft);
 }
+.badge.badge-platform {
+  color: #eff7f4;
+  background: #ffffff26;
+}
 .section-head-plain {
   margin-bottom: 14px;
 }
@@ -761,6 +767,37 @@ tr:last-child td {
   background: var(--accent-soft);
   color: var(--accent-deep);
 }
+/* Agente maestro: visible solo al equipo de plataforma, se distingue del
+   resto de módulos con la misma superficie oscura de la barra lateral. */
+.module-card.special {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: #eff7f4;
+}
+.module-card.special p {
+  color: #a9c7bf;
+}
+.module-icon.special {
+  background: #ffffff1f;
+  color: #eff7f4;
+}
+/* Cada módulo tiene un color propio, plano, para reconocerse de un vistazo. */
+.module-icon.tone-mint {
+  background: var(--tone-mint-bg);
+  color: var(--tone-mint-ink);
+}
+.module-icon.tone-peach {
+  background: var(--tone-peach-bg);
+  color: var(--tone-peach-ink);
+}
+.module-icon.tone-lavender {
+  background: var(--tone-lavender-bg);
+  color: var(--tone-lavender-ink);
+}
+.module-icon.tone-sky {
+  background: var(--tone-sky-bg);
+  color: var(--tone-sky-ink);
+}
 .procedure-card {
   background: var(--surface-1);
   border: 1px solid var(--line);
@@ -809,6 +846,78 @@ tr:last-child td {
   justify-content: space-between;
   font-size: 9px;
   color: #5f716f;
+}
+/*
+  Galería de "Tutoriales y flujos": un módulo aparte, con más color que el
+  resto del producto, para que el catálogo de "cómo se hace" se distinga a
+  simple vista de las listas de trabajo (sesiones, biblioteca).
+*/
+.procedure-grid.vivid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.procedure-card.vivid {
+  padding: 0;
+  overflow: hidden;
+}
+.procedure-card.vivid:hover .procedure-banner {
+  transform: scale(1.03);
+}
+.procedure-banner {
+  display: grid;
+  place-items: center;
+  height: 108px;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
+.procedure-banner.tone-mint {
+  background: var(--tone-mint-bg);
+  color: var(--tone-mint-ink);
+}
+.procedure-banner.tone-peach {
+  background: var(--tone-peach-bg);
+  color: var(--tone-peach-ink);
+}
+.procedure-banner.tone-lavender {
+  background: var(--tone-lavender-bg);
+  color: var(--tone-lavender-ink);
+}
+.procedure-banner.tone-sky {
+  background: var(--tone-sky-bg);
+  color: var(--tone-sky-ink);
+}
+.procedure-card.vivid .procedure-card-body {
+  padding: 18px 20px 20px;
+}
+.procedure-card.vivid h3 {
+  font-size: 14.5px;
+}
+.procedure-card.vivid p {
+  font-size: 11.5px;
+  margin-top: 8px;
+}
+.procedure-add-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 214px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.procedure-add-tile:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: var(--surface-1);
+}
+.procedure-add-tile .module-icon {
+  background: var(--surface-3);
+  color: var(--accent);
 }
 .page-footer {
   display: flex;
@@ -1219,11 +1328,12 @@ tr:last-child td {
 .auth-story .brand {
   padding: 0;
 }
-.auth-story .brand-text strong {
+.auth-story .brand-word {
   color: #1d2624;
 }
-.auth-story .brand-text small {
+.auth-story .brand-os {
   color: #4f625f;
+  border-color: #00000022;
 }
 .auth-message {
   margin: auto 0;
@@ -1484,8 +1594,8 @@ dialog::backdrop {
     width: 29px;
     height: 29px;
   }
-  .brand-text strong {
-    font-size: 14px;
+  .brand-word {
+    font-size: 16px;
   }
   .nav-item {
     font-size: 10px;
@@ -1594,7 +1704,7 @@ dialog::backdrop {
   .sidebar .brand {
     padding: 0;
   }
-  .sidebar .brand-text strong {
+  .sidebar .brand-word {
     font-size: 15px;
   }
   .organization {

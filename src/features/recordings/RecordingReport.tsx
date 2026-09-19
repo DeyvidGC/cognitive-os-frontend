@@ -32,6 +32,7 @@ export default function RecordingReport({
   const [report, setReport] = useState<Report | null>(null);
   const [draft, setDraft] = useState<ReportContent | null>(null);
   const [editing, setEditing] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [message, setMessage] = useState("");
   const [conflict, setConflict] = useState<Report | null>(null);
@@ -41,6 +42,7 @@ export default function RecordingReport({
     !!report &&
     !!draft &&
     JSON.stringify(report.content) !== JSON.stringify(draft);
+  const step = draft?.instructions[stepIndex];
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -50,6 +52,7 @@ export default function RecordingReport({
     setReport(next);
     setDraft(structuredClone(next.content));
     setEditing(false);
+    setStepIndex(0);
     setConflict(null);
   }
   async function updateReport(route: string, options: RequestInit) {
@@ -172,6 +175,18 @@ export default function RecordingReport({
               onSubmit={(e) => {
                 e.preventDefault();
                 void run(async () => {
+                  // The carousel only mounts one step's fields at a time, so
+                  // native `required` can't see the others; check them all here.
+                  const invalidIndex = draft.instructions.findIndex(
+                    (s) =>
+                      !s.instruction.trim() || !s.expected_result.trim(),
+                  );
+                  if (invalidIndex !== -1) {
+                    setStepIndex(invalidIndex);
+                    throw new Error(
+                      `El paso ${invalidIndex + 1} necesita una instrucción y un resultado esperado.`,
+                    );
+                  }
                   const next = await updateReport(
                     path,
                     json({ revision: report.revision, content: draft }, "PUT"),
@@ -240,173 +255,241 @@ export default function RecordingReport({
                     />
                   </section>
                 )}
-                <div className="report-instructions">
-                  {draft.instructions.map((step, index) => (
-                    <article key={index}>
-                      <span className="step-number">{index + 1}</span>
-                      <div>
-                        {editing ? (
-                          <>
-                            <label>
-                              Instrucción
-                              <textarea
-                                value={step.instruction}
-                                required
-                                maxLength={4000}
-                                onChange={(e) =>
-                                  setDraft({
-                                    ...draft,
-                                    instructions: draft.instructions.map(
-                                      (s, i) =>
-                                        i === index
-                                          ? {
-                                              ...s,
-                                              instruction: e.target.value,
-                                            }
-                                          : s,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                            <label>
-                              Resultado esperado
-                              <textarea
-                                value={step.expected_result}
-                                required
-                                maxLength={2000}
-                                onChange={(e) =>
-                                  setDraft({
-                                    ...draft,
-                                    instructions: draft.instructions.map(
-                                      (s, i) =>
-                                        i === index
-                                          ? {
-                                              ...s,
-                                              expected_result: e.target.value,
-                                            }
-                                          : s,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                          </>
-                        ) : (
-                          <>
-                            <h4>{step.instruction}</h4>
-                            <p>{step.expected_result}</p>
-                          </>
-                        )}
-                        <div className="time-sources">
-                          {step.text_sources?.map((source) => (
-                            <span className="time-source" key={source}>
-                              {source === "transcript"
-                                ? "Transcripción"
-                                : source === "notes"
-                                  ? "Notas"
-                                  : "Aclaraciones"}
-                            </span>
-                          ))}
-                          {step.frame_indices.map((frameIndex) => {
-                            const frame = report.sampling.frames[frameIndex];
-                            return frame ? (
-                              <button
-                                type="button"
-                                className="time-source"
-                                key={frameIndex}
-                                onClick={() =>
-                                  onSeek(frame.timestamp_ms / 1000)
-                                }
-                              >
-                                <Icon name="play" size={12} />
-                                {formatDuration(frame.timestamp_ms / 1000)}
-                              </button>
-                            ) : (
-                              <span key={frameIndex}>Fuente no disponible</span>
-                            );
-                          })}
-                        </div>
-                        {editing && (
-                          <fieldset className="source-selection">
-                            <legend>
-                              Fuentes que respaldan este paso (al menos una)
-                            </legend>
-                            {report.sampling.frames.map((frame, frameIndex) => (
-                              <label className="checkbox" key={frameIndex}>
-                                <input
-                                  type="checkbox"
-                                  checked={step.frame_indices.includes(
-                                    frameIndex,
-                                  )}
-                                  onChange={(e) => {
-                                    const indices = e.target.checked
-                                      ? [...step.frame_indices, frameIndex]
-                                      : step.frame_indices.filter(
-                                          (i) => i !== frameIndex,
-                                        );
-                                    if (
-                                      indices.length ||
-                                      step.text_sources?.length
-                                    )
+                {draft.instructions.length > 0 && (
+                  <div className="step-carousel">
+                    <div className="step-carousel-head">
+                      <button
+                        type="button"
+                        className="step-nav"
+                        aria-label="Paso anterior"
+                        disabled={stepIndex === 0}
+                        onClick={() => setStepIndex((i) => i - 1)}
+                      >
+                        <Icon name="arrow" size={16} />
+                      </button>
+                      <div className="step-dots" role="tablist" aria-label="Pasos del procedimiento">
+                        {draft.instructions.map((_, i) => (
+                          <button
+                            type="button"
+                            key={i}
+                            role="tab"
+                            aria-selected={i === stepIndex}
+                            className={i === stepIndex ? "step-dot active" : "step-dot"}
+                            onClick={() => setStepIndex(i)}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="step-nav next"
+                        aria-label="Paso siguiente"
+                        disabled={stepIndex >= draft.instructions.length - 1}
+                        onClick={() => setStepIndex((i) => i + 1)}
+                      >
+                        <Icon name="arrow" size={16} />
+                      </button>
+                    </div>
+                    <p className="step-count">
+                      Paso {stepIndex + 1} de {draft.instructions.length}
+                    </p>
+                    {step && (
+                        <article className="step-card">
+                          <span className="step-number">{stepIndex + 1}</span>
+                          <div>
+                            {editing ? (
+                              <>
+                                <label>
+                                  Instrucción
+                                  <textarea
+                                    value={step.instruction}
+                                    required
+                                    maxLength={4000}
+                                    onChange={(e) =>
                                       setDraft({
                                         ...draft,
                                         instructions: draft.instructions.map(
                                           (s, i) =>
-                                            i === index
-                                              ? { ...s, frame_indices: indices }
+                                            i === stepIndex
+                                              ? {
+                                                  ...s,
+                                                  instruction: e.target.value,
+                                                }
                                               : s,
                                         ),
-                                      });
-                                  }}
-                                />
-                                {formatDuration(frame.timestamp_ms / 1000)}
-                              </label>
-                            ))}
-                            {report.sampling.text_sources?.map((source) => (
-                              <label className="checkbox" key={source}>
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    step.text_sources?.includes(source) || false
-                                  }
-                                  onChange={(event) => {
-                                    const sources = event.target.checked
-                                      ? [...(step.text_sources || []), source]
-                                      : (step.text_sources || []).filter(
-                                          (value) => value !== source,
-                                        );
-                                    if (
-                                      sources.length ||
-                                      step.frame_indices.length
-                                    )
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  Resultado esperado
+                                  <textarea
+                                    value={step.expected_result}
+                                    required
+                                    maxLength={2000}
+                                    onChange={(e) =>
                                       setDraft({
                                         ...draft,
                                         instructions: draft.instructions.map(
-                                          (value, i) =>
-                                            i === index
+                                          (s, i) =>
+                                            i === stepIndex
                                               ? {
-                                                  ...value,
-                                                  text_sources: sources,
+                                                  ...s,
+                                                  expected_result:
+                                                    e.target.value,
                                                 }
-                                              : value,
+                                              : s,
                                         ),
-                                      });
-                                  }}
-                                />
-                                {source === "transcript"
-                                  ? "Transcripción"
-                                  : source === "notes"
-                                    ? "Notas"
-                                    : "Aclaraciones"}
-                              </label>
-                            ))}
-                          </fieldset>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                                      })
+                                    }
+                                  />
+                                </label>
+                              </>
+                            ) : (
+                              <>
+                                <h4>{step.instruction}</h4>
+                                <p>{step.expected_result}</p>
+                              </>
+                            )}
+                            <div className="time-sources">
+                              {step.text_sources?.map((source) => (
+                                <span className="time-source" key={source}>
+                                  {source === "transcript"
+                                    ? "Transcripción"
+                                    : source === "notes"
+                                      ? "Notas"
+                                      : "Aclaraciones"}
+                                </span>
+                              ))}
+                              {step.frame_indices.map((frameIndex) => {
+                                const frame =
+                                  report.sampling.frames[frameIndex];
+                                return frame ? (
+                                  <button
+                                    type="button"
+                                    className="time-source"
+                                    key={frameIndex}
+                                    onClick={() =>
+                                      onSeek(frame.timestamp_ms / 1000)
+                                    }
+                                  >
+                                    <Icon name="play" size={12} />
+                                    {formatDuration(frame.timestamp_ms / 1000)}
+                                  </button>
+                                ) : (
+                                  <span key={frameIndex}>
+                                    Fuente no disponible
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            {editing && (
+                              <fieldset className="source-selection">
+                                <legend>
+                                  Fuentes que respaldan este paso (al menos
+                                  una)
+                                </legend>
+                                {report.sampling.frames.map(
+                                  (frame, frameIndex) => (
+                                    <label
+                                      className="checkbox"
+                                      key={frameIndex}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={step.frame_indices.includes(
+                                          frameIndex,
+                                        )}
+                                        onChange={(e) => {
+                                          const indices = e.target.checked
+                                            ? [
+                                                ...step.frame_indices,
+                                                frameIndex,
+                                              ]
+                                            : step.frame_indices.filter(
+                                                (i) => i !== frameIndex,
+                                              );
+                                          if (
+                                            indices.length ||
+                                            step.text_sources?.length
+                                          )
+                                            setDraft({
+                                              ...draft,
+                                              instructions:
+                                                draft.instructions.map(
+                                                  (s, i) =>
+                                                    i === stepIndex
+                                                      ? {
+                                                          ...s,
+                                                          frame_indices:
+                                                            indices,
+                                                        }
+                                                      : s,
+                                                ),
+                                            });
+                                        }}
+                                      />
+                                      {formatDuration(
+                                        frame.timestamp_ms / 1000,
+                                      )}
+                                    </label>
+                                  ),
+                                )}
+                                {report.sampling.text_sources?.map(
+                                  (source) => (
+                                    <label className="checkbox" key={source}>
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          step.text_sources?.includes(
+                                            source,
+                                          ) || false
+                                        }
+                                        onChange={(event) => {
+                                          const sources = event.target.checked
+                                            ? [
+                                                ...(step.text_sources || []),
+                                                source,
+                                              ]
+                                            : (step.text_sources || []).filter(
+                                                (value) => value !== source,
+                                              );
+                                          if (
+                                            sources.length ||
+                                            step.frame_indices.length
+                                          )
+                                            setDraft({
+                                              ...draft,
+                                              instructions:
+                                                draft.instructions.map(
+                                                  (value, i) =>
+                                                    i === stepIndex
+                                                      ? {
+                                                          ...value,
+                                                          text_sources:
+                                                            sources,
+                                                        }
+                                                      : value,
+                                                ),
+                                            });
+                                        }}
+                                      />
+                                      {source === "transcript"
+                                        ? "Transcripción"
+                                        : source === "notes"
+                                          ? "Notas"
+                                          : "Aclaraciones"}
+                                    </label>
+                                  ),
+                                )}
+                              </fieldset>
+                            )}
+                          </div>
+                        </article>
+                    )}
+                  </div>
+                )}
                 {editing ? (
                   <label>
                     Dudas o limitaciones (una por línea)

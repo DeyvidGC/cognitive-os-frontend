@@ -8,6 +8,7 @@ export type User = {
   display_name: string;
   email: string;
   memberships: Membership[];
+  is_platform_staff?: boolean;
 };
 export type Session = {
   id: string;
@@ -104,6 +105,25 @@ const translations: Record<string, string> = {
     "Responde las aclaraciones pendientes antes de finalizar.",
   "Add at least one event or evidence before finishing":
     "Añade una nota o una evidencia antes de finalizar.",
+  "Chatbot provider unavailable or not configured":
+    "El chatbot de IA no está disponible en este momento. Inténtalo de nuevo más tarde.",
+  "Policy chatbot provider unavailable or not configured":
+    "El asistente de pólizas no está disponible en este momento. Inténtalo de nuevo más tarde.",
+  "Policy document exceeds size limit":
+    "El documento supera el tamaño máximo permitido.",
+  "This upload already exists with different data":
+    "Ya hay una subida con ese identificador pero con otro contenido. Intenta de nuevo.",
+  "Policy document is already uploaded":
+    "Este documento ya se terminó de subir.",
+  "Policy document is not uploaded yet":
+    "Este documento todavía no se terminó de subir.",
+  "Only a failed policy document can be retried":
+    "Solo puedes reintentar un documento con error de lectura.",
+  "Only a ready or failed policy document can be retired":
+    "Solo puedes retirar un documento ya analizado o con error.",
+  "Open knowledge gap not found":
+    "Ese vacío de conocimiento ya no está abierto.",
+  "Capture access denied": "No tienes permisos para esta acción.",
 };
 export function client(token = "", organization = "", onExpired?: () => void) {
   async function request<T>(

@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { allPages, json } from "../../shared/api";
 import type { Client, Clarification, Version } from "../../shared/api";
 import type { RecordingReport, Job } from "./recordings";
-import { Badge, ErrorNotice } from "../../shared/ui";
+import { Badge, ErrorNotice, Icon } from "../../shared/ui";
 import { useAction } from "../../shared/utils";
 import { formatDuration } from "../capture/screenCapture";
 import { confirmAction } from "../../shared/confirmAction";
@@ -139,6 +139,8 @@ export default function RecordingInsights({
   }, [api, path, sessionId, report.revision, tab, refresh]);
   const old = history.find((item) => item.revision === historical);
   const node = flow?.nodes.find((item) => item.id === selected);
+  // A refetch can return fewer clarifications than before; never index past the end.
+  const guidedIndex = Math.min(questionIndex, Math.max(0, questions.length - 1));
   return (
     <section className="insight-panel">
       <h3>Revisar y utilizar lo aprendido</h3>
@@ -188,22 +190,19 @@ export default function RecordingInsights({
       </button>
       {tab === "questions" && (
         <div>
-          <div
-            className="button-group question-modes"
-            aria-label="Forma de responder"
-          >
+          <div className="mode-switch" role="tablist" aria-label="Forma de responder">
             <button
               type="button"
-              className="secondary"
-              aria-pressed={questionMode === "all"}
+              role="tab"
+              aria-selected={questionMode === "all"}
               onClick={() => setQuestionMode("all")}
             >
               Encuesta completa
             </button>
             <button
               type="button"
-              className="secondary"
-              aria-pressed={questionMode === "guided"}
+              role="tab"
+              aria-selected={questionMode === "guided"}
               onClick={() => {
                 setQuestionMode("guided");
                 setQuestionIndex(0);
@@ -213,30 +212,56 @@ export default function RecordingInsights({
             </button>
           </div>
           {questionMode === "guided" && questions.length > 0 && (
-            <div className="button-group">
-              <button
-                className="text-button"
-                type="button"
-                disabled={questionIndex === 0}
-                onClick={() => setQuestionIndex((index) => index - 1)}
-              >
-                Anterior
-              </button>
-              <span>
-                Pregunta {questionIndex + 1} de {questions.length}
-              </span>
-              <button
-                className="text-button"
-                type="button"
-                disabled={questionIndex >= questions.length - 1}
-                onClick={() => setQuestionIndex((index) => index + 1)}
-              >
-                Siguiente
-              </button>
+            <div className="step-carousel">
+              <div className="step-carousel-head">
+                <button
+                  type="button"
+                  className="step-nav"
+                  aria-label="Pregunta anterior"
+                  disabled={guidedIndex === 0}
+                  onClick={() => setQuestionIndex(guidedIndex - 1)}
+                >
+                  <Icon name="arrow" size={14} />
+                </button>
+                <div
+                  className="step-dots"
+                  role="tablist"
+                  aria-label="Preguntas de la sesión"
+                >
+                  {questions.map((q, i) => (
+                    <button
+                      type="button"
+                      key={q.id}
+                      role="tab"
+                      aria-selected={i === guidedIndex}
+                      className={
+                        i === guidedIndex
+                          ? `step-dot active${q.answer ? "" : " pending"}`
+                          : `step-dot${q.answer ? "" : " pending"}`
+                      }
+                      onClick={() => setQuestionIndex(i)}
+                    >
+                      {q.answer ? <Icon name="check" size={12} /> : i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="step-nav next"
+                  aria-label="Pregunta siguiente"
+                  disabled={guidedIndex >= questions.length - 1}
+                  onClick={() => setQuestionIndex(guidedIndex + 1)}
+                >
+                  <Icon name="arrow" size={14} />
+                </button>
+              </div>
+              <p className="step-count">
+                Pregunta {guidedIndex + 1} de {questions.length}
+              </p>
             </div>
           )}
           {(questionMode === "guided"
-            ? questions.slice(questionIndex, questionIndex + 1)
+            ? questions.slice(guidedIndex, guidedIndex + 1)
             : questions
           ).map((q) => (
             <form
