@@ -5,6 +5,7 @@ import type { Client, Clarification, Event, Session } from "../../shared/api";
 import { ErrorNotice, Icon } from "../../shared/ui";
 import { useAction } from "../../shared/utils";
 import LiveAgent from "./LiveAgent";
+import LiveVoiceAgent from "./LiveVoiceAgent";
 import type { CaptureState } from "../capture/screenCapture";
 export default function AgentConversation({
   api,
@@ -22,6 +23,7 @@ export default function AgentConversation({
   canAnswer?: boolean;
 }) {
   const [events, setEvents] = useState<Event[]>([]);
+  const [agentMode, setAgentMode] = useState<"voice" | "text">("voice");
   const [questions, setQuestions] = useState<Clarification[]>([]);
   const [text, setText] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -80,13 +82,45 @@ export default function AgentConversation({
         <i />
         Conversación en vivo y contexto del aprendizaje
       </span>
-      <LiveAgent
-        api={api}
-        sessionId={session.id}
-        allowed={writable}
-        capture={capture}
-        onReply={onContextChange}
-      />
+      <div className="button-group question-modes">
+        <button
+          type="button"
+          className="secondary"
+          aria-pressed={agentMode === "voice"}
+          onClick={() => setAgentMode("voice")}
+        >
+          Llamada en vivo
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          aria-pressed={agentMode === "text"}
+          onClick={() => setAgentMode("text")}
+        >
+          Chat por texto
+        </button>
+      </div>
+      <small>Cambiar de modo finaliza la conexión actual.</small>
+      {agentMode === "voice" ? (
+        <LiveVoiceAgent
+          api={api}
+          sessionId={session.id}
+          allowed={writable && session.status === "capturing"}
+          capture={capture}
+          onChanged={async () => {
+            setRefreshKey((key) => key + 1);
+            await onContextChange();
+          }}
+        />
+      ) : (
+        <LiveAgent
+          api={api}
+          sessionId={session.id}
+          allowed={writable}
+          capture={capture}
+          onReply={onContextChange}
+        />
+      )}
       <div
         className="conversation-tabs"
         role="tablist"
@@ -116,7 +150,13 @@ export default function AgentConversation({
           events.length ? (
             events.map((e) => (
               <article className="chat-note" key={e.id}>
-                <small>Contexto guardado</small>
+                <small>
+                  {e.payload.speaker === "assistant"
+                    ? "Agente · voz en vivo"
+                    : e.payload.speaker === "user"
+                      ? "Tú · voz en vivo"
+                      : "Contexto guardado"}
+                </small>
                 <p>{e.payload.text}</p>
               </article>
             ))

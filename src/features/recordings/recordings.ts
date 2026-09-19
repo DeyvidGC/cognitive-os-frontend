@@ -177,6 +177,7 @@ export class RecordingUpload {
   private audioConsent: boolean;
   private resumable: boolean;
   private hash = "";
+  private metadata: { title?: string; origin?: "screen_capture" | "upload" };
   constructor(
     api: Client,
     sessionId: string,
@@ -184,8 +185,9 @@ export class RecordingUpload {
     existing?: Recording,
     audioConsent = false,
     resumable = false,
-    private metadata: { title?: string; origin?: "screen_capture" | "upload" } = {},
+    metadata: { title?: string; origin?: "screen_capture" | "upload" } = {},
   ) {
+    this.metadata = metadata;
     this.audioConsent = audioConsent;
     this.resumable = resumable;
     this.api = api;

@@ -36,6 +36,12 @@ export default function FloatingAgent({
   const alive = useRef(true);
   const active = !!state.stream;
   const { phase, microphone } = state;
+  useEffect(() => {
+    // Reveal a proactive question without programmatic PiP resizing (requires a click).
+    const showQuestion = () => setExpanded(true);
+    window.addEventListener("cognitive-agent-question", showQuestion);
+    return () => window.removeEventListener("cognitive-agent-question", showQuestion);
+  }, []);
 
   useEffect(() => {
     alive.current = true;

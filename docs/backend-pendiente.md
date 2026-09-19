@@ -1,5 +1,8 @@
 # Contratos necesarios para completar la experiencia
 
+> Actualizacion: el canal de voz ya esta conectado en el frontend. Las propuestas antiguas de la seccion 4 quedan sustituidas por [Integracion de voz en vivo](agente-voz-en-vivo.md). Ese documento distingue lo implementado y los ajustes pendientes del protocolo.
+
+
 Actualizado: 18 de septiembre de 2026. Cambios de esta entrega limitados al frontend; no se modificó la API.
 
 ## Implementado en el frontend

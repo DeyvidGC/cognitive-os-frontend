@@ -26,15 +26,23 @@ export default function VoiceInput({
   disabled = false,
   name,
   question,
+  onListeningChange,
+  maxLength = 10000,
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   name?: string;
   question?: string;
+  onListeningChange?: (value: boolean) => void;
+  maxLength?: number;
 }) {
   const recognition = useRef<Recognition | null>(null);
   const [listening, setListening] = useState(false);
+  useEffect(() => {
+    onListeningChange?.(listening);
+    return () => onListeningChange?.(false);
+  }, [listening, onListeningChange]);
   const [error, setError] = useState("");
   const speech = window as SpeechWindow;
   const Constructor =
@@ -72,7 +80,7 @@ export default function VoiceInput({
       const text = Array.from(event.results)
         .map((result) => result[0].transcript)
         .join(" ");
-      onChange([prefix, text].filter(Boolean).join(" ").slice(0, 10000));
+      onChange([prefix, text].filter(Boolean).join(" ").slice(0, maxLength));
     };
     current.onerror = () => {
       setError(
@@ -96,7 +104,7 @@ export default function VoiceInput({
         <textarea
           name={name}
           required
-          maxLength={10000}
+          maxLength={maxLength}
           value={value}
           disabled={disabled || listening}
           onChange={(e) => onChange(e.target.value)}

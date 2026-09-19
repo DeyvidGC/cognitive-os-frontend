@@ -88,3 +88,9 @@ El historial de videos se encuentra en Sesiones de aprendizaje. Cada tarjeta abr
 El BPMN se presenta horizontal con colores. Las reglas mantienen evidencia consultable sin minutos visibles y las excepciones se despliegan al final. Las aclaraciones permiten encuesta completa o una pregunta por vez, respuesta escrita o dictada, y lectura de la pregunta. El dictado depende del servicio de voz del navegador; la interrupción autónoma del agente aún requiere backend.
 
 La API consultada sigue limitada a 600 segundos y un video por sesión. El frontend respeta ese límite; el contrato para 1800 segundos, historial agrupado y voz en tiempo real está detallado en [backend-pendiente.md](docs/backend-pendiente.md).
+
+## Llamada en vivo conectada
+
+El frontend incorpora `/agent/live-voice`: micrófono PCM, reproducción de voz, pantalla periódica y preguntas proactivas. En la sesión compartida abre **Llamada en vivo**, autoriza el envío e inicia la llamada. El chat por texto permanece como modo separado.
+
+La descripción anterior de voz autónoma como pendiente queda sustituida por [agente-voz-en-vivo.md](docs/agente-voz-en-vivo.md), con uso, limitaciones del contrato y validación pendiente con el proveedor real.

@@ -325,15 +325,19 @@ export default function RecordingInsights({
       {tab === "transcript" && transcript && (
         <div>
           <p>
-            {transcript.analyzed
-              ? "Audio analizado"
-              : !transcript.audio_present
-                ? "El video no contiene audio"
-                : "El audio no fue analizado"}
+            {transcript.exclusion_reason === "live_voice_transcript_available"
+              ? "Se utilizó la transcripción de la llamada en vivo"
+              : transcript.analyzed
+                ? "Audio analizado"
+                : !transcript.audio_present
+                  ? "El video no contiene audio"
+                  : "El audio no fue analizado"}
           </p>
-          {transcript.exclusion_reason && (
-            <p>Motivo: {transcript.exclusion_reason}</p>
-          )}
+          {transcript.exclusion_reason &&
+            transcript.exclusion_reason !==
+              "live_voice_transcript_available" && (
+              <p>Motivo: {transcript.exclusion_reason}</p>
+            )}
           <pre>{transcript.text || "No hay transcripción disponible."}</pre>
         </div>
       )}

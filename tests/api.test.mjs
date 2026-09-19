@@ -143,6 +143,10 @@ test("agent WebSocket authenticates in the first frame, never in its URL", () =>
     assert.equal(frames.length, 0);
     opened();
     assert.deepEqual(frames, [{ type: "auth", token: "private-token", organization_id: "org-1", consent: true }]);
+    client("private-token", "org-1").agentSocket("session-1", "live-voice");
+    assert.equal(address, "wss://workspace.test/api/v1/learning-sessions/session-1/agent/live-voice");
+    opened();
+    assert.deepEqual(frames[1], frames[0]);
   } finally {
     if (previousSocket === undefined) delete globalThis.WebSocket; else globalThis.WebSocket = previousSocket;
     if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
