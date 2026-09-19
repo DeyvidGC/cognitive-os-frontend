@@ -1,48 +1,61 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Public+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 /*
-  Cognitive OS opta por un tema oscuro único. No hay variante clara: el
-  contraste alto y el acento cian son parte de la identidad del producto, no
-  una preferencia del sistema operativo.
+  Cognitive OS: identidad clara y cálida (Inventiva Solutions). Un solo tema,
+  sin variante oscura: superficie marfil, tinta verde-negra, acento teal para
+  acción/foco y terracota para llamados de atención. No es una preferencia
+  del sistema operativo, es la identidad del producto.
 */
 :root {
   /* Superficies, de la más profunda a la más elevada */
-  --surface-0: #070b12;
-  --surface-1: #0c121d;
-  --surface-2: #111a28;
-  --surface-3: #16202f;
+  --surface-0: #f6f3ea;
+  --surface-1: #ffffff;
+  --surface-2: #fbf8f1;
+  --surface-3: #f1eadd;
 
   /* Bordes */
-  --line: #1e2a3d;
-  --line-strong: #2b3a52;
+  --line: #e2ddcc;
+  --line-strong: #cfc7ae;
 
   /* Texto */
-  --text: #e6edf7;
-  --text-2: #a8b6cc;
-  --text-3: #6f8098;
+  --text: #1b2a26;
+  --text-2: #57655f;
+  --text-3: #8a968f;
 
   /* Acento: la voz de la IA, el foco y la acción principal */
-  --accent: #22d3ee;
-  --accent-soft: #7be5f0;
-  --accent-deep: #0d3b46;
-  --accent-glow: #22d3ee4d;
+  --accent: #0b5e52;
+  --accent-soft: #bfe0d8;
+  --accent-deep: #093f38;
+  --accent-glow: #0b5e522e;
+  --accent-2: #c9622a;
 
   /* Los tres estados del conocimiento */
-  --observado: #8fa6c8;
-  --observado-bg: #182236;
-  --inferido: #e5a53a;
-  --inferido-bg: #2e2312;
-  --validado: #35d39a;
-  --validado-bg: #0f2c24;
+  --observado: #2e6f95;
+  --observado-bg: #deeaf1;
+  --inferido: #b0793f;
+  --inferido-bg: #f1e4d2;
+  --validado: #2f7a4f;
+  --validado-bg: #e1efe2;
 
-  --danger: #f76a63;
-  --danger-bg: #2e1512;
+  --danger: #a6321c;
+  --danger-bg: #f5dfd8;
 
-  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Fraunces", ui-serif, Georgia, serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --radius: 10px;
-  --radius-sm: 7px;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Colores de cliente para el punto del selector de espacio de trabajo */
+  --client-1: #2e6f95;
+  --client-2: #7a5fb0;
+  --client-3: #b0793f;
+  --client-4: #3c8768;
+  --client-5: #a6321c;
+  --client-6: #0b5e52;
 
   font-family: var(--sans);
   color: var(--text);
@@ -53,7 +66,7 @@
   -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
   font-size: 14px;
-  color-scheme: dark;
+  color-scheme: light;
 }
 * {
   box-sizing: border-box;
@@ -63,12 +76,12 @@ body {
   min-width: 320px;
   color: var(--text);
   /*
-    Dos resplandores muy tenues fijos al viewport dan profundidad sin competir
+    Dos tintes muy tenues fijos al viewport dan profundidad sin competir
     con el contenido. `fixed` evita que se desplacen al hacer scroll.
   */
   background:
-    radial-gradient(900px 520px at 12% -8%, #22d3ee14, transparent 70%),
-    radial-gradient(760px 460px at 96% 4%, #6366f110, transparent 72%),
+    radial-gradient(900px 520px at 12% -8%, #0b5e5212, transparent 70%),
+    radial-gradient(760px 460px at 96% 4%, #c9622a10, transparent 72%),
     var(--surface-0);
   background-attachment: fixed;
 }
@@ -112,18 +125,18 @@ p {
 h1,
 h2,
 h3 {
-  font-family: var(--sans);
+  font-family: var(--display);
 }
 h1 {
   font-size: 32px;
-  letter-spacing: -1.1px;
+  letter-spacing: -0.4px;
   font-weight: 600;
   line-height: 1.15;
 }
 h2 {
   font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.2px;
 }
 h3 {
   font-size: 14px;
@@ -195,7 +208,7 @@ a:focus-visible {
 }
 ::selection {
   background: var(--accent-deep);
-  color: var(--text);
+  color: #fff;
 }
 ::-webkit-scrollbar {
   width: 10px;
@@ -226,10 +239,10 @@ pre {
   border: 1px solid var(--line);
   border-radius: 20px;
   color: var(--text);
-  box-shadow: 0 24px 100px #000000a6;
+  box-shadow: 0 24px 80px #1b2a2626;
 }
 .confirmation-dialog::backdrop {
-  background: #02050966;
+  background: #1b2a2666;
   backdrop-filter: blur(5px);
 }
 .confirmation-dialog h2 {

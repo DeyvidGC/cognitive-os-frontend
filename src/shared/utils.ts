@@ -52,6 +52,16 @@ export function useAction() {
   }
   return { busy, error, run };
 }
+/*
+  Cada organización recibe un color estable para el punto del selector de
+  espacio de trabajo, derivado de su id: mismo cliente, mismo color, sin
+  guardar nada nuevo en la API.
+*/
+export function clientColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return `var(--client-${(hash % 6) + 1})`;
+}
 export function date(value: string) {
   return new Intl.DateTimeFormat("es-CO", {
     day: "numeric",

@@ -85,7 +85,9 @@ export default function RecordingSearch({
       )}
       <small>
         La similitud ordena coincidencias; no representa certeza ni una
-        respuesta del agente.
+        respuesta del agente. Cuando un video nuevo actualiza el mismo
+        procedimiento, la información desactualizada se retira sola de estos
+        resultados.
       </small>
     </section>
   );

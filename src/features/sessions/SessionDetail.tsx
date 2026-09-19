@@ -9,6 +9,7 @@ import type {
   Event,
   Evidence,
   Membership,
+  Procedure,
   Session,
 } from "../../shared/api";
 import { Badge, Empty, ErrorNotice, Icon, Modal } from "../../shared/ui";
@@ -23,6 +24,7 @@ export default function SessionDetail({
   membership,
   userId,
   onCaptureProtectedChange,
+  procedures = [],
 }: {
   onNewSession: () => void;
   api: Client;
@@ -31,6 +33,7 @@ export default function SessionDetail({
   membership: Membership;
   userId: string;
   onCaptureProtectedChange: (value: boolean) => void;
+  procedures?: Procedure[];
 }) {
   const [current, setCurrent] = useState(session);
   const [recordings, setRecordings] = useState<Recording[]>([]);
@@ -130,6 +133,18 @@ export default function SessionDetail({
           )}
         </div>
       </div>
+      {current.procedure_id && (
+        <div className="info">
+          Esta sesión actualiza{" "}
+          <strong>
+            {procedures.find((p) => p.id === current.procedure_id)?.title ||
+              "un procedimiento existente"}
+          </strong>
+          . Cuando apruebes el video o el análisis, la información nueva que
+          coincida con un hecho ya indexado reemplazará automáticamente al
+          anterior en la búsqueda de conocimiento; lo demás se conserva.
+        </div>
+      )}
       <ErrorNotice error={error || loadError} />
       {loadError && (
         <button className="secondary" onClick={() => void refresh()}>

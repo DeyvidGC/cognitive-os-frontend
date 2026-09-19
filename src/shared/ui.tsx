@@ -77,6 +77,17 @@ export function Icon({
         <path d="M12 7v5l3 2" />
       </>
     ),
+    message: <path d="M4 5h16v10H8l-4 4Z" />,
+    shield: (
+      <path d="M12 3 5 6v5c0 5 3 8 7 9 4-1 7-4 7-9V6Z" />
+    ),
+    chart: (
+      <>
+        <path d="M4 20V10" />
+        <path d="M11 20V4" />
+        <path d="M18 20v-7" />
+      </>
+    ),
   };
   return (
     <svg
@@ -154,14 +165,16 @@ export function StateBar({
 export function Empty({
   title,
   children,
+  icon = "book",
 }: {
   title: string;
   children?: ReactNode;
+  icon?: string;
 }) {
   return (
     <div className="empty">
       <span className="empty-icon">
-        <Icon name="book" size={26} />
+        <Icon name={icon} size={26} />
       </span>
       <h3>{title}</h3>
       <p>{children}</p>

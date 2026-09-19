@@ -1,6 +1,6 @@
 import VideoHistory from "../features/recordings/VideoHistory";
 import { confirmAction } from "../shared/confirmAction";
-import { date, labels, useAction } from "../shared/utils";
+import { clientColor, date, labels, useAction } from "../shared/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allPages, client, json } from "../shared/api";
 import type { Procedure, Result, Session, User } from "../shared/api";
@@ -10,13 +10,58 @@ import ProcedureDetail from "../features/procedures/ProcedureDetail";
 import RecordingSearch from "../features/knowledge/RecordingSearch";
 import { Badge, Empty, ErrorNotice, Icon, Modal } from "../shared/ui";
 import "./App.css";
-type Page = "overview" | "sessions" | "procedures" | "knowledge";
-const navigation: { id: Page; label: string; icon: string }[] = [
-  { id: "overview", label: "Vista general", icon: "grid" },
-  { id: "sessions", label: "Sesiones de aprendizaje", icon: "record" },
-  { id: "procedures", label: "Procedimientos", icon: "book" },
-  { id: "knowledge", label: "Explorar conocimiento", icon: "search" },
+type Page =
+  | "overview"
+  | "dashboard"
+  | "sessions"
+  | "procedures"
+  | "knowledge"
+  | "chatbot"
+  | "policies";
+const navigationGroups: {
+  label: string;
+  items: { id: Page; label: string; icon: string }[];
+}[] = [
+  {
+    label: "GENERAL",
+    items: [
+      { id: "overview", label: "Inicio", icon: "grid" },
+      { id: "dashboard", label: "Dashboard de uso", icon: "chart" },
+    ],
+  },
+  {
+    label: "APRENDER",
+    items: [
+      { id: "sessions", label: "Sesiones de aprendizaje", icon: "record" },
+      { id: "procedures", label: "Tutoriales y flujos", icon: "book" },
+    ],
+  },
+  {
+    label: "CONSULTAR",
+    items: [
+      { id: "knowledge", label: "Buscar en videos", icon: "search" },
+      { id: "chatbot", label: "Chatbot", icon: "message" },
+      { id: "policies", label: "Analizador de pólizas", icon: "shield" },
+    ],
+  },
 ];
+const navigation = navigationGroups.flatMap((g) => g.items);
+/* Páginas sin backend propio todavía: se muestran con una ficha honesta de
+   "próximamente" en vez de datos simulados. */
+const comingSoon: Partial<Record<Page, { title: string; body: string }>> = {
+  chatbot: {
+    title: "El chatbot conversacional está en construcción",
+    body: "Responderá con lo aprendido en sesiones y procedimientos publicados, citando siempre su fuente. Mientras tanto, usa Buscar en videos o Explorar conocimiento para encontrar fragmentos relevantes.",
+  },
+  policies: {
+    title: "El analizador de pólizas está en construcción",
+    body: "Leerá pólizas desde tu almacenamiento y permitirá subir una puntual para preguntarle directamente. Todavía no hay datos ni respaldo de backend para este módulo.",
+  },
+  dashboard: {
+    title: "El dashboard de uso está en construcción",
+    body: "Mostrará qué se pregunta más, qué queda sin responder y dónde falta enseñarle algo a la IA. Todavía no hay datos ni respaldo de backend para este módulo.",
+  },
+};
 function App() {
   const [auth, setAuth] = useState<{ token: string; user: User } | null>(null);
   const [notice, setNotice] = useState("");
@@ -158,17 +203,19 @@ function Workspace({
             navigate("overview");
           }}
         >
-          <span className="brand-mark">
-            <Icon name="spark" size={23} />
+          <span className="brand-mark">IS</span>
+          <span className="brand-text">
+            <strong>Inventiva</strong>
+            <small>Cognitive</small>
           </span>
-          cognitive<span className="brand-os">OS</span>
         </a>
         <label className="organization">
-          <span className="workspace-avatar">
-            {membership?.organization_name.charAt(0).toUpperCase() || "C"}
-          </span>
-          <span>
-            <small>ESPACIO DE TRABAJO</small>
+          <small>Trabajando en</small>
+          <span className="organization-row">
+            <span
+              className="workspace-avatar"
+              style={{ background: clientColor(organization) }}
+            />
             <select
               aria-label="Organización"
               value={organization}
@@ -183,27 +230,34 @@ function Workspace({
                 </option>
               ))}
             </select>
+            <span className="organization-caret">▾</span>
           </span>
         </label>
-        <span className="nav-label">WORKSPACE</span>
-        <nav>
-          {navigation
-            .filter((n) => n.id !== "sessions" || membership?.role !== "reader")
-            .map((n) => (
-              <button
-                key={n.id}
-                className={page === n.id ? "nav-item active" : "nav-item"}
-                onClick={() => navigate(n.id)}
-                aria-current={page === n.id ? "page" : undefined}
-              >
-                <Icon name={n.icon} />
-                {n.label}
-                {n.id === "sessions" && active > 0 && (
-                  <span className="nav-count">{active}</span>
-                )}
-              </button>
-            ))}
-        </nav>
+        {navigationGroups.map((group) => (
+          <div key={group.label} className="nav-group">
+            <span className="nav-label">{group.label}</span>
+            <nav>
+              {group.items
+                .filter(
+                  (n) => n.id !== "sessions" || membership?.role !== "reader",
+                )
+                .map((n) => (
+                  <button
+                    key={n.id}
+                    className={page === n.id ? "nav-item active" : "nav-item"}
+                    onClick={() => navigate(n.id)}
+                    aria-current={page === n.id ? "page" : undefined}
+                  >
+                    <Icon name={n.icon} />
+                    {n.label}
+                    {n.id === "sessions" && active > 0 && (
+                      <span className="nav-count">{active}</span>
+                    )}
+                  </button>
+                ))}
+            </nav>
+          </div>
+        ))}
         <div className="sidebar-bottom">
           <div className="profile">
             <span className="avatar">
@@ -235,13 +289,48 @@ function Workspace({
       </aside>
       <div className="main-shell">
         <header className="topbar">
-          <span>
-            Workspace <span className="breadcrumb">/</span>{" "}
-            <strong>{title}</strong>
-          </span>
-          <span className="workspace-status">
-            <span className="status-dot" /> Espacio privado
-          </span>
+          <div>
+            <h1 className="topbar-title">
+              {selected
+                ? title
+                : page === "overview"
+                  ? `Hola, ${user.display_name.split(" ")[0]}`
+                  : title}
+            </h1>
+            {!selected && (
+              <p className="topbar-sub">
+                {
+                  {
+                    overview:
+                      "Cada proceso que compartes es un nuevo punto de partida.",
+                    sessions: "Registra la experiencia detrás de cada proceso.",
+                    procedures:
+                      "Documenta, revisa y comparte una forma de hacer las cosas.",
+                    knowledge:
+                      "Encuentra respuestas en los procedimientos publicados de tu equipo.",
+                    chatbot: comingSoon.chatbot!.body,
+                    policies: comingSoon.policies!.body,
+                    dashboard: comingSoon.dashboard!.body,
+                  }[page]
+                }
+              </p>
+            )}
+          </div>
+          {!selected &&
+            canWrite &&
+            (page === "overview" ||
+              page === "sessions" ||
+              page === "procedures") && (
+              <button
+                className="primary"
+                onClick={() =>
+                  setModal(page === "procedures" ? "procedure" : "session")
+                }
+              >
+                <Icon name="plus" size={16} />
+                {page === "procedures" ? "Nuevo procedimiento" : "Nueva sesión"}
+              </button>
+            )}
         </header>
         <main>
           {accessExpired && (
@@ -289,6 +378,7 @@ function Workspace({
                   membership={membership}
                   userId={user.id}
                   onCaptureProtectedChange={updateCaptureProtected}
+                  procedures={procedures}
                 />
               ) : (
                 <ProcedureDetail
@@ -303,43 +393,6 @@ function Workspace({
             </>
           ) : (
             <>
-              <div className="page-heading">
-                <div>
-                  <span className="eyebrow">
-                    {page === "overview"
-                      ? "TU EQUIPO, MÁS CONECTADO"
-                      : "CONOCIMIENTO EN ACCIÓN"}
-                  </span>
-                  <h1>
-                    {page === "overview"
-                      ? `Hola, ${user.display_name.split(" ")[0]}`
-                      : title}
-                    <span className="heading-dot">.</span>
-                  </h1>
-                  <p>
-                    {page === "overview"
-                      ? "Cada proceso que compartes es un nuevo punto de partida."
-                      : page === "sessions"
-                        ? "Registra la experiencia detrás de cada proceso."
-                        : page === "procedures"
-                          ? "Documenta, revisa y comparte una forma de hacer las cosas."
-                          : "Encuentra respuestas en los procedimientos publicados de tu equipo."}
-                  </p>
-                </div>
-                {canWrite && page !== "knowledge" && (
-                  <button
-                    className="primary"
-                    onClick={() =>
-                      setModal(page === "procedures" ? "procedure" : "session")
-                    }
-                  >
-                    <Icon name="plus" size={18} />
-                    {page === "procedures"
-                      ? "Nuevo procedimiento"
-                      : "Nueva sesión"}
-                  </button>
-                )}
-              </div>
               <ErrorNotice error={loadError} />
               {loadError && (
                 <button className="secondary" onClick={() => void refresh()}>
@@ -408,6 +461,74 @@ function Workspace({
                       </article>
                     ))}
                   </section>
+                  <div className="section-head-plain">
+                    <h2>Módulos</h2>
+                    <p className="muted">
+                      Todo lo que {membership.organization_name} enseñó a
+                      Cognitive, organizado por función.
+                    </p>
+                  </div>
+                  <div className="module-grid">
+                    {[
+                      {
+                        page: "sessions" as Page,
+                        icon: "record",
+                        title: "Sesiones de aprendizaje",
+                        body: "Comparte pantalla y enseña un proceso en vivo; la IA escucha, pregunta y anota reglas de negocio.",
+                        core: true,
+                        hidden: membership.role === "reader",
+                      },
+                      {
+                        page: "knowledge" as Page,
+                        icon: "search",
+                        title: "Buscar en videos",
+                        body: "Encuentra respuestas en los procedimientos publicados de tu equipo.",
+                      },
+                      {
+                        page: "chatbot" as Page,
+                        icon: "message",
+                        title: "Chatbot de conocimiento",
+                        body: "Resuelve dudas del día a día con respuestas citando la sesión o el documento de origen.",
+                      },
+                      {
+                        page: "procedures" as Page,
+                        icon: "book",
+                        title: "Tutoriales y flujos",
+                        body: "Catálogo de \"cómo se hace\", documentado paso a paso desde las sesiones grabadas.",
+                      },
+                      {
+                        page: "policies" as Page,
+                        icon: "shield",
+                        title: "Analizador de pólizas",
+                        body: "Lee documentos desde tu almacenamiento o una carga puntual, y responde preguntas sobre su contenido.",
+                      },
+                      {
+                        page: "dashboard" as Page,
+                        icon: "chart",
+                        title: "Dashboard de uso",
+                        body: "Qué se pregunta más, qué quedó sin responder, y dónde falta enseñarle algo a la IA.",
+                      },
+                    ]
+                      .filter((m) => !m.hidden)
+                      .map((m) => (
+                        <button
+                          key={m.page}
+                          className={m.core ? "module-card core" : "module-card"}
+                          onClick={() => navigate(m.page)}
+                        >
+                          <div className="module-card-top">
+                            <span className="module-icon">
+                              <Icon name={m.icon} size={19} />
+                            </span>
+                            {m.core && (
+                              <span className="badge badge-primary">Core</span>
+                            )}
+                          </div>
+                          <h3>{m.title}</h3>
+                          <p>{m.body}</p>
+                        </button>
+                      ))}
+                  </div>
                 </>
               )}
               {loading ? (
@@ -691,6 +812,24 @@ function Workspace({
                         )}
                       </section>
                     )}
+                    {(page === "chatbot" ||
+                      page === "policies" ||
+                      page === "dashboard") && (
+                      <section className="panel">
+                        <Empty
+                          title={comingSoon[page]!.title}
+                          icon={
+                            page === "chatbot"
+                              ? "message"
+                              : page === "policies"
+                                ? "shield"
+                                : "chart"
+                          }
+                        >
+                          {comingSoon[page]!.body}
+                        </Empty>
+                      </section>
+                    )}
                   </>
                 )
               )}
@@ -778,7 +917,7 @@ function Workspace({
                       <option value="">Nuevo proceso</option>
                       {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.title}</option>)}
                     </select>
-                    <small>El análisis aprobado generará una nueva versión en borrador y conservará las anteriores.</small>
+                    <small>El análisis aprobado generará una nueva versión en borrador y conservará las anteriores. Si grabas un video para este mismo proceso, la información que corrija o actualice un hecho ya indexado lo reemplazará automáticamente en la búsqueda; nada se duplica.</small>
                   </label>
                   <label className="checkbox">
                     <input type="checkbox" name="consent" required />
