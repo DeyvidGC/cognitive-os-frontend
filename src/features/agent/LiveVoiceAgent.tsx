@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Client, Clarification } from "../../shared/api";
 import type { CaptureState } from "../capture/screenCapture";
 import { VoiceAudio } from "./voiceAudio";
-import { snapshot } from "./snapshot";
+import { LiveSnapshot } from "./liveSnapshot";
 import VoiceInput from "../../shared/VoiceInput";
 
 const endings: Record<string, string> = {
@@ -36,7 +36,9 @@ export default function LiveVoiceAgent({
   const [question, setQuestion] = useState<Clarification | null>(null);
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
-  const [intervalSeconds, setIntervalSeconds] = useState(15);
+  const [intervalSeconds, setIntervalSeconds] = useState(2);
+  const snapshots = useRef<LiveSnapshot | null>(null);
+  const requestFrame = useRef<(() => void) | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const audio = useRef<VoiceAudio | null>(null);
   const frameTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -59,6 +61,9 @@ export default function LiveVoiceAgent({
 
   function stop(message: string, notify = true) {
     generation.current++;
+    snapshots.current?.dispose();
+    snapshots.current = null;
+    requestFrame.current = null;
     clearTimeout(frameTimer.current);
     clearTimeout(deadline.current);
     clearTimeout(inputTimer.current);
@@ -92,17 +97,9 @@ export default function LiveVoiceAgent({
     };
   }, []);
   useEffect(() => {
-    const hidden = () => {
-      if (document.hidden && audio.current)
-        stop(
-          "La llamada terminó al ocultar la pestaña. Vuelve a conectar para continuar.",
-        );
-    };
     const leaving = () => stop("Llamada finalizada.");
-    document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pagehide", leaving);
     return () => {
-      document.removeEventListener("visibilitychange", hidden);
       window.removeEventListener("pagehide", leaving);
     };
   }, []);
@@ -126,7 +123,7 @@ export default function LiveVoiceAgent({
   }, [api, sessionId]);
 
   async function connect() {
-    if (!consent || !canCall || active || audio.current || document.hidden)
+    if (!consent || !canCall || active || audio.current)
       return;
     const stream = capture!.stream!;
     const turn = ++generation.current;
@@ -134,12 +131,20 @@ export default function LiveVoiceAgent({
     setActive(true);
     setStatus("Conectando llamada…");
     try {
-      const device = new VoiceAudio((value) => {
-        if (mounted.current) setSpeaking(value);
-      });
+      const device = new VoiceAudio(
+        (value) => {
+          if (mounted.current) setSpeaking(value);
+        },
+        () => {
+          if (mounted.current && turn === generation.current)
+            setError(
+              "Se descartó audio pendiente por acumulación excesiva. La llamada sigue conectada.",
+            );
+        },
+      );
       audio.current = device;
       await device.unlock(); // Resume from the button gesture; microphone is opened only after ready.
-      if (turn !== generation.current || document.hidden) {
+      if (turn !== generation.current) {
         device.stop();
         return;
       }
@@ -176,7 +181,7 @@ export default function LiveVoiceAgent({
             const maxSeconds = Number(message.session_max_seconds);
             if (
               !Number.isFinite(interval) ||
-              interval < 5 ||
+              interval < 1 ||
               interval > 60 ||
               !Number.isFinite(maxSeconds) ||
               maxSeconds <= 0 ||
@@ -192,15 +197,13 @@ export default function LiveVoiceAgent({
             await device.start((data) => {
               if (
                 socket.current !== ws ||
-                ws.readyState !== WebSocket.OPEN ||
-                document.hidden
+                ws.readyState !== WebSocket.OPEN
               )
                 return;
-              if (ws.bufferedAmount > 128000) {
+              if (ws.bufferedAmount > 750000) {
                 setError(
-                  "La conexión no alcanza a enviar el audio. Vuelve a conectar.",
+                  "La conexión está lenta; se descarta audio atrasado para mantener la llamada en vivo.",
                 );
-                stop("Llamada interrumpida por la red.");
                 return;
               }
               ws.send(data);
@@ -214,36 +217,44 @@ export default function LiveVoiceAgent({
             if (socket.current !== ws || turn !== generation.current) return;
             setReady(true);
             setStatus("Conectado · el agente puede hacerte preguntas");
+            const grabber = new LiveSnapshot(stream);
+            snapshots.current = grabber;
+            let capturing = false;
+            let lastImage = "";
+            let lastFrameAt = 0;
             async function frame() {
+              if (capturing || socket.current !== ws) return;
+              capturing = true;
+              clearTimeout(frameTimer.current);
               try {
-                const image = await snapshot(stream);
-                if (
-                  socket.current !== ws ||
-                  ws.readyState !== WebSocket.OPEN ||
-                  document.hidden
-                )
-                  return;
-                if (ws.bufferedAmount > 128000)
-                  throw new Error(
-                    "La conexión está saturada. Vuelve a conectar.",
-                  );
-                ws.send(JSON.stringify({ type: "frame", image_base64: image }));
-                frameTimer.current = setTimeout(
-                  () => void frame(),
-                  interval * 1000,
-                );
-              } catch (e) {
-                if (socket.current === ws) {
-                  setError(
-                    e instanceof Error
-                      ? e.message
-                      : "No se pudo compartir la pantalla con el agente.",
-                  );
-                  stop("Se detuvo la llamada.");
+                if (ws.bufferedAmount > 64000) return; // Audio has priority.
+                const image = await grabber.take();
+                if (socket.current !== ws || ws.readyState !== WebSocket.OPEN) return;
+                if (ws.bufferedAmount > 64000) return;
+                if (image !== lastImage || Date.now() - lastFrameAt > 10000) {
+                  ws.send(JSON.stringify({ type: "frame", image_base64: image }));
+                  lastImage = image;
+                  lastFrameAt = Date.now();
                 }
+              } catch {
+                if (socket.current === ws)
+                  setStatus("Llamada conectada · reintentando captura de pantalla");
+              } finally {
+                capturing = false;
+                if (socket.current === ws)
+                  frameTimer.current = setTimeout(() => void frame(), interval * 1000);
               }
             }
+            requestFrame.current = () => void frame();
             void frame();
+          } else if (message.type === "speech_started") {
+            const played = device.interrupt();
+            ws.send(JSON.stringify({ type: "interrupt", ...played }));
+            requestFrame.current?.();
+          } else if (message.type === "speech_stopped") {
+            requestFrame.current?.();
+          } else if (message.type === "audio.started") {
+            device.beginItem(message.item_id);
           } else if (message.type === "clarification.created") {
             if (
               typeof message.clarification_id !== "string" ||
@@ -434,7 +445,11 @@ export default function LiveVoiceAgent({
           <button
             type="button"
             className="secondary"
-            onClick={() => audio.current?.silence()}
+            onClick={() => {
+              const played = audio.current?.interrupt();
+              if (played && socket.current?.readyState === WebSocket.OPEN)
+                socket.current.send(JSON.stringify({ type: "interrupt", ...played }));
+            }}
           >
             Detener audio actual
           </button>
@@ -447,9 +462,9 @@ export default function LiveVoiceAgent({
       )}
       {ready && (
         <small>
-          Pantalla enviada cada {intervalSeconds} segundos.{" "}
+          Pantalla revisada cada {intervalSeconds} segundos y al hablar.{" "}
           {effectiveMute ? "Micrófono de llamada silenciado. " : ""}La llamada
-          termina al ocultar esta pestaña.
+          continúa al cambiar de pestaña o aplicación.
         </small>
       )}
       {error && (

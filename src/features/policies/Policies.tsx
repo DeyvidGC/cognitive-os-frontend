@@ -10,6 +10,11 @@ import type { Transfer } from "../recordings/recordings";
 import "../chatbot/Chatbot.css";
 import "./Policies.css";
 
+const SUGGESTED_QUESTIONS = [
+  "¿Qué cubre esta póliza?",
+  "¿Cuál es la vigencia?",
+  "¿Qué exclusiones tiene?",
+];
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -41,6 +46,8 @@ export default function Policies({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState("");
+  const [viewerLoading, setViewerLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { busy, error, run } = useAction();
   const load = useCallback(async () => {
@@ -57,6 +64,23 @@ export default function Policies({
       .includes(filter.toLowerCase()),
   );
   const selected = items.find((p) => p.id === selectedId) || null;
+  useEffect(() => {
+    setViewerUrl("");
+    if (!selected || selected.status !== "ready") return;
+    let cancelled = false;
+    setViewerLoading(true);
+    api<Transfer>(`/policies/${selected.id}/view`)
+      .then((transfer) => {
+        if (!cancelled) setViewerUrl(transfer.url);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setViewerLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, selected]);
   async function pickFile(file: File) {
     const controller = new AbortController();
     setUpload({ name: file.name, stage: "Preparando", percent: 0 });
@@ -250,69 +274,36 @@ export default function Policies({
           </div>
         )}
       </section>
-      <section className="policies-detail">
-        {selected && (
-          <div className="policy-detail-head">
-            <div>
-              <h2>{selected.title || "Documento sin título"}</h2>
-              <p>
-                {formatSize(selected.size_bytes)} · {date(selected.created_at)}
-              </p>
-            </div>
-            <div className="policy-detail-actions">
-              {selected.status !== "uploading" && (
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const transfer = await api<Transfer>(
-                        `/policies/${selected.id}/view`,
-                      );
-                      window.open(transfer.url, "_blank", "noopener");
-                    })
-                  }
-                >
-                  Ver documento
-                </button>
-              )}
-              {canManage && selected.status === "failed" && (
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const updated = await api<PolicyDocument>(
-                        `/policies/${selected.id}/retry`,
-                        { method: "POST" },
-                      );
-                      setItems((list) =>
-                        list.map((p) => (p.id === updated.id ? updated : p)),
-                      );
-                    })
-                  }
-                >
-                  Reintentar
-                </button>
-              )}
-              {canManage &&
-                (selected.status === "ready" ||
-                  selected.status === "failed") && (
+      <section className="policies-viewer">
+        {selected ? (
+          <>
+            <div className="policy-detail-head">
+              <div>
+                <h2>{selected.title || "Documento sin título"}</h2>
+                <p>
+                  {formatSize(selected.size_bytes)} ·{" "}
+                  {date(selected.created_at)}
+                </p>
+              </div>
+              <div className="policy-detail-actions">
+                {viewerUrl && (
                   <button
-                    className="secondary danger"
+                    className="secondary"
+                    onClick={() =>
+                      window.open(viewerUrl, "_blank", "noopener")
+                    }
+                  >
+                    Abrir en pestaña nueva
+                  </button>
+                )}
+                {canManage && selected.status === "failed" && (
+                  <button
+                    className="secondary"
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        if (
-                          !(await confirmAction(
-                            "El documento dejará de responder preguntas del analizador. Puedes seguir viéndolo, pero no reintentarlo.",
-                            "Retirar documento",
-                            "Retirar",
-                          ))
-                        )
-                          return;
                         const updated = await api<PolicyDocument>(
-                          `/policies/${selected.id}/retire`,
+                          `/policies/${selected.id}/retry`,
                           { method: "POST" },
                         );
                         setItems((list) =>
@@ -321,12 +312,83 @@ export default function Policies({
                       })
                     }
                   >
-                    Retirar
+                    Reintentar
                   </button>
                 )}
+                {canManage &&
+                  (selected.status === "ready" ||
+                    selected.status === "failed") && (
+                    <button
+                      className="secondary danger"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          if (
+                            !(await confirmAction(
+                              "El documento dejará de responder preguntas del analizador. Puedes seguir viéndolo, pero no reintentarlo.",
+                              "Retirar documento",
+                              "Retirar",
+                            ))
+                          )
+                            return;
+                          const updated = await api<PolicyDocument>(
+                            `/policies/${selected.id}/retire`,
+                            { method: "POST" },
+                          );
+                          setItems((list) =>
+                            list.map((p) => (p.id === updated.id ? updated : p)),
+                          );
+                        })
+                      }
+                    >
+                      Retirar
+                    </button>
+                  )}
+              </div>
             </div>
-          </div>
+            <div className="policy-viewer-body">
+              {viewerLoading ? (
+                <p className="muted inset">Cargando documento…</p>
+              ) : viewerUrl ? (
+                <iframe
+                  className="policy-viewer-frame"
+                  src={viewerUrl}
+                  title={selected.title || "Visor de póliza"}
+                />
+              ) : (
+                <Empty
+                  title={
+                    selected.status === "failed"
+                      ? "No se pudo leer este documento"
+                      : selected.status === "uploading"
+                        ? "El documento se está subiendo"
+                        : "El documento se está analizando"
+                  }
+                  icon="shield"
+                >
+                  {selected.status === "failed"
+                    ? "Reintenta el análisis o retira el documento."
+                    : "El visor estará disponible cuando termine el análisis."}
+                </Empty>
+              )}
+            </div>
+          </>
+        ) : (
+          <Empty title="Selecciona un documento" icon="shield">
+            Elige una póliza de la lista para verla aquí y preguntarle al
+            panel de IA.
+          </Empty>
         )}
+      </section>
+      <section className="policies-detail">
+        <div className="policies-detail-head">
+          <h2>Panel IA</h2>
+          <p className="muted">
+            {selected
+              ? "Responde sobre el documento seleccionado."
+              : "Responde sobre toda la biblioteca analizada."}
+          </p>
+        </div>
         <div className="chat-scroll policies-ask-scroll">
           {turns.length === 0 && (
             <div className="chat-empty">
@@ -338,6 +400,19 @@ export default function Policies({
                 O deja "Todos los documentos" para buscar en toda la
                 biblioteca analizada.
               </p>
+              <div className="search-chips">
+                {SUGGESTED_QUESTIONS.map((q) => (
+                  <button
+                    type="button"
+                    key={q}
+                    className="chip"
+                    disabled={asking}
+                    onClick={() => void ask(q)}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {turns.map((t) => (

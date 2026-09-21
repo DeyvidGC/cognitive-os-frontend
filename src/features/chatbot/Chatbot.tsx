@@ -5,6 +5,12 @@ import { Icon } from "../../shared/ui";
 import type { ChatAnswer, ChatHistoryEntry, ChatTurn } from "./types";
 import "./Chatbot.css";
 
+const SUGGESTED_QUESTIONS = [
+  "¿Cómo creo una cotización?",
+  "¿Cómo emito una póliza?",
+  "¿Qué hago si un cliente pide cancelar?",
+];
+
 export default function Chatbot({
   api,
   userInitials,
@@ -96,6 +102,19 @@ export default function Chatbot({
                 Responde con lo aprendido en sesiones y procedimientos
                 publicados, citando siempre su fuente.
               </p>
+              <div className="search-chips">
+                {SUGGESTED_QUESTIONS.map((q) => (
+                  <button
+                    type="button"
+                    key={q}
+                    className="chip"
+                    disabled={sending}
+                    onClick={() => void ask(q)}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {turns.map((t) => (

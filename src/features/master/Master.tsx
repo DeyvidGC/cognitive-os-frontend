@@ -9,6 +9,7 @@ import "./Master.css";
 export default function Master({ api }: { api: Client }) {
   const [usage, setUsage] = useState<MasterUsageEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orgFilter, setOrgFilter] = useState("");
   const [mode, setMode] = useState<"chatbot" | "policies">("chatbot");
   const [question, setQuestion] = useState("");
   const [answers, setAnswers] = useState<MasterAnswerEntry[] | null>(null);
@@ -65,21 +66,36 @@ export default function Master({ api }: { api: Client }) {
                 <h2>Comparativa entre clientes</h2>
                 <p>Últimos 7 días · qué sabe la IA de cada cliente.</p>
               </div>
+              {usage.length > 1 && (
+                <input
+                  className="filter"
+                  aria-label="Filtrar por cliente"
+                  placeholder="Filtrar por cliente…"
+                  value={orgFilter}
+                  onChange={(e) => setOrgFilter(e.target.value)}
+                />
+              )}
             </div>
             <div className="master-org-grid">
               {usage.length ? (
-                usage.map((u) => (
-                  <article className="master-org-card" key={u.organization_id}>
-                    <h3>{u.organization_name}</h3>
-                    <p>
-                      <strong>{u.questions}</strong> preguntas ·{" "}
-                      {u.coverage === null
-                        ? "—"
-                        : `${Math.round(u.coverage * 100)}%`}{" "}
-                      cobertura · {u.open_gaps} vacíos
-                    </p>
-                  </article>
-                ))
+                usage
+                  .filter((u) =>
+                    u.organization_name
+                      .toLowerCase()
+                      .includes(orgFilter.toLowerCase()),
+                  )
+                  .map((u) => (
+                    <article className="master-org-card" key={u.organization_id}>
+                      <h3>{u.organization_name}</h3>
+                      <p>
+                        <strong>{u.questions}</strong> preguntas ·{" "}
+                        {u.coverage === null
+                          ? "—"
+                          : `${Math.round(u.coverage * 100)}%`}{" "}
+                        cobertura · {u.open_gaps} vacíos
+                      </p>
+                    </article>
+                  ))
               ) : (
                 <Empty title="Todavía no hay organizaciones con actividad" icon="chart">
                   En cuanto un cliente empiece a preguntar, aparecerá aquí.

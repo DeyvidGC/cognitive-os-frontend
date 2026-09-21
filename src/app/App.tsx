@@ -1,9 +1,9 @@
 import VideoHistory from "../features/recordings/VideoHistory";
 import { confirmAction } from "../shared/confirmAction";
-import { clientColor, date, labels, useAction } from "../shared/utils";
+import { clientColor, date, labels, nextStepLabel, useAction } from "../shared/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allPages, client, json } from "../shared/api";
-import type { Procedure, Result, Session, User } from "../shared/api";
+import type { Procedure, Session, User } from "../shared/api";
 import Auth from "../features/auth/Auth";
 import SessionDetail from "../features/sessions/SessionDetail";
 import ProcedureDetail from "../features/procedures/ProcedureDetail";
@@ -29,7 +29,7 @@ const navigationGroups: {
   items: { id: Page; label: string; icon: string }[];
 }[] = [
   {
-    label: "GENERAL",
+    label: "INICIO",
     items: [
       { id: "overview", label: "Inicio", icon: "grid" },
       { id: "dashboard", label: "Dashboard de uso", icon: "chart" },
@@ -37,9 +37,12 @@ const navigationGroups: {
   },
   {
     label: "APRENDER",
+    items: [{ id: "sessions", label: "Sesiones de aprendizaje", icon: "record" }],
+  },
+  {
+    label: "BIBLIOTECA",
     items: [
-      { id: "sessions", label: "Sesiones de aprendizaje", icon: "record" },
-      { id: "procedures", label: "Tutoriales y flujos", icon: "book" },
+      { id: "procedures", label: "Biblioteca de procedimientos", icon: "book" },
     ],
   },
   {
@@ -51,7 +54,7 @@ const navigationGroups: {
     ],
   },
   {
-    label: "PLATAFORMA",
+    label: "MAESTRO",
     items: [{ id: "master", label: "Agente maestro", icon: "spark" }],
   },
 ];
@@ -144,8 +147,6 @@ function Workspace({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [filter, setFilter] = useState("");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Result[] | null>(null);
   const { busy, error, run } = useAction();
   const refresh = useCallback(async () => {
     try {
@@ -468,13 +469,9 @@ function Workspace({
                     ))}
                   </section>
                   <div className="section-head-plain">
-                    <h2>Módulos</h2>
-                    <p className="muted">
-                      Todo lo que {membership.organization_name} enseñó a
-                      Cognitive, organizado por función.
-                    </p>
+                    <h2>Accesos rápidos</h2>
                   </div>
-                  <div className="module-grid">
+                  <div className="quicklinks">
                     {[
                       {
                         page: "sessions" as Page,
@@ -496,14 +493,14 @@ function Workspace({
                         page: "chatbot" as Page,
                         icon: "message",
                         tone: "peach",
-                        title: "Chatbot de conocimiento",
+                        title: "Chatbot",
                         body: "Resuelve dudas del día a día con respuestas citando la sesión o el documento de origen.",
                       },
                       {
                         page: "procedures" as Page,
                         icon: "book",
                         tone: "mint",
-                        title: "Tutoriales y flujos",
+                        title: "Biblioteca de procedimientos",
                         body: "Catálogo de \"cómo se hace\", documentado paso a paso desde las sesiones grabadas.",
                       },
                       {
@@ -536,35 +533,20 @@ function Workspace({
                         <button
                           key={m.page}
                           className={
-                            m.core
-                              ? "module-card core"
-                              : m.special
-                                ? "module-card special"
-                                : "module-card"
+                            m.special ? "quicklink special" : "quicklink"
                           }
                           onClick={() => navigate(m.page)}
                         >
-                          <div className="module-card-top">
-                            <span
-                              className={
-                                m.special
-                                  ? "module-icon special"
-                                  : `module-icon tone-${m.tone}`
-                              }
-                            >
-                              <Icon name={m.icon} size={19} />
-                            </span>
-                            {m.core && (
-                              <span className="badge badge-primary">Core</span>
-                            )}
-                            {m.special && (
-                              <span className="badge badge-platform">
-                                Plataforma
-                              </span>
-                            )}
-                          </div>
-                          <h3>{m.title}</h3>
-                          <p>{m.body}</p>
+                          <span
+                            className={
+                              m.special
+                                ? "module-icon special"
+                                : `module-icon tone-${m.tone}`
+                            }
+                          >
+                            <Icon name={m.icon} size={17} />
+                          </span>
+                          {m.title}
                         </button>
                       ))}
                   </div>
@@ -621,6 +603,7 @@ function Workspace({
                                   <th>SESIÓN / OBJETIVO</th>
                                   <th>APLICACIÓN</th>
                                   <th>ESTADO</th>
+                                  <th>SIGUIENTE PASO</th>
                                   <th>CREADA</th>
                                   <th />
                                 </tr>
@@ -648,6 +631,18 @@ function Workspace({
                                     <td>{s.application_name}</td>
                                     <td>
                                       <Badge status={s.status} />
+                                    </td>
+                                    <td>
+                                      <button
+                                        className="text-button next-step"
+                                        onClick={async () => {
+                                          setSelected(s);
+                                          setPage("sessions");
+                                        }}
+                                      >
+                                        {nextStepLabel(s.status)}
+                                        <Icon name="arrow" size={13} />
+                                      </button>
                                     </td>
                                     <td className="date-cell">
                                       {date(s.created_at)}
@@ -800,98 +795,24 @@ function Workspace({
                     {page === "knowledge" && membership?.role !== "reader" && (
                       <RecordingSearch
                         api={api}
-                        onOpen={async (id) => {
+                        procedures={procedures}
+                        onOpenSession={async (id) => {
                           const next = await api<Session>(
                             `/learning-sessions/${id}`,
                           );
                           setSelected(next);
                           setPage("sessions");
                         }}
+                        onOpenProcedure={(procedureId) => {
+                          const p = procedures.find(
+                            (item) => item.id === procedureId,
+                          );
+                          if (p) {
+                            setSelected(p);
+                            setPage("procedures");
+                          }
+                        }}
                       />
-                    )}
-                    {page === "knowledge" && (
-                      <section className="panel search-panel">
-                        <span className="search-symbol">
-                          <Icon name="search" size={32} />
-                        </span>
-                        <h2>¿Qué quieres encontrar?</h2>
-                        <p>
-                          Busca por palabras clave en los pasos de los
-                          procedimientos publicados.
-                        </p>
-                        <form
-                          className="search-form"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            void run(async () => {
-                              setResults(null);
-                              setResults(
-                                await api<Result[]>(
-                                  `/knowledge/search?q=${encodeURIComponent(query.trim())}&limit=100`,
-                                ),
-                              );
-                            });
-                          }}
-                        >
-                          <input
-                            aria-label="Buscar conocimiento"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            required
-                            maxLength={500}
-                            placeholder="Por ejemplo: crear una cotización"
-                          />
-                          <button
-                            className="primary"
-                            disabled={busy || !query.trim()}
-                          >
-                            {busy ? "Buscando…" : "Buscar"}
-                            <Icon name="arrow" size={18} />
-                          </button>
-                        </form>
-                        {results && (
-                          <div className="search-results">
-                            <small>{results.length} resultados</small>
-                            {results.map((r) => (
-                              <article key={r.id}>
-                                <Badge status="published" />
-                                <h3>
-                                  {procedures.find(
-                                    (p) => p.id === r.procedure_id,
-                                  )?.title || "Procedimiento publicado"}{" "}
-                                  · v{r.version_number}
-                                </h3>
-                                <p>{r.content}</p>
-                                <button
-                                  className="text-button"
-                                  onClick={async () => {
-                                    const p = procedures.find(
-                                      (p) => p.id === r.procedure_id,
-                                    );
-                                    if (p) {
-                                      setSelected(p);
-                                      setPage("procedures");
-                                    }
-                                  }}
-                                  disabled={
-                                    !procedures.some(
-                                      (p) => p.id === r.procedure_id,
-                                    )
-                                  }
-                                >
-                                  Abrir procedimiento →
-                                </button>
-                              </article>
-                            ))}
-                            {!results.length && (
-                              <Empty title="Todavía no hay coincidencias">
-                                Prueba con otras palabras o publica un
-                                procedimiento para hacerlo consultable.
-                              </Empty>
-                            )}
-                          </div>
-                        )}
-                      </section>
                     )}
                     {page === "chatbot" && (
                       <Chatbot

@@ -32,6 +32,24 @@ export function knowledgeState(origin: string, validation: string) {
   if (origin === "inferred") return { key: "inferido", label: "Inferido" };
   return { key: "observado", label: "Observado" };
 }
+/*
+  Traduce el estado técnico de una sesión a la acción concreta que la
+  persona debería tomar. Así la tabla de sesiones dice "qué hago ahora" en
+  vez de repetir el mismo estado que ya muestra el badge.
+*/
+export function nextStepLabel(status: string) {
+  return (
+    {
+      capturing: "Continuar captura",
+      uploading: "Terminar subida",
+      queued: "En análisis",
+      processing: "En análisis",
+      ready: "Revisar aprendizaje",
+      completed: "Revisar aprendizaje",
+      failed: "Revisar error",
+    }[status] || "Abrir sesión"
+  );
+}
 export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

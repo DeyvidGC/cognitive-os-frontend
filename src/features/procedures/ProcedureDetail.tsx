@@ -183,6 +183,8 @@ function VersionEditor({
   sessions: Session[];
 }) {
   const [steps, setSteps] = useState<Step[]>([]);
+  const [stepView, setStepView] = useState<"carousel" | "list">("carousel");
+  const [stepIndex, setStepIndex] = useState(0);
   const [tutorial, setTutorial] = useState("");
   const [savedTutorial, setSavedTutorial] = useState("");
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -218,6 +220,7 @@ function VersionEditor({
     setSavedTutorial(t.content || "");
     setEvidence(e);
     setLoaded(true);
+    setStepIndex((i) => Math.max(0, Math.min(i, s.length - 1)));
   }, [api, path, version.source_session_id, membership.role]);
   useEffect(() => {
     void run(load);
@@ -232,6 +235,14 @@ function VersionEditor({
     steps.every((s) => s.validation_status === "confirmed") &&
     !!savedTutorial &&
     tutorial === savedTutorial;
+  const orderedSteps = [...steps].sort((a, b) => a.position - b.position);
+  const activeStep = orderedSteps[Math.min(stepIndex, orderedSteps.length - 1)];
+  const originLabel = (origin: string) =>
+    ({
+      observed: "Observado durante la captura",
+      inferred: "Deducido por el análisis",
+      user_explained: "Explicado por el autor",
+    })[origin];
   return (
     <>
       <ErrorNotice error={error} />
@@ -312,60 +323,156 @@ function VersionEditor({
                   <p>La secuencia que hace posible el resultado.</p>
                   <StateBar steps={steps} />
                 </div>
-                {editable && (
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => setEditing("new")}
-                  >
-                    <Icon name="plus" size={17} />
-                    Añadir paso
-                  </button>
-                )}
+                <div className="button-group">
+                  {steps.length > 0 && (
+                    <div className="mode-switch" role="group" aria-label="Vista de pasos">
+                      <button
+                        type="button"
+                        aria-selected={stepView === "carousel"}
+                        onClick={() => setStepView("carousel")}
+                      >
+                        Carrusel
+                      </button>
+                      <button
+                        type="button"
+                        aria-selected={stepView === "list"}
+                        onClick={() => setStepView("list")}
+                      >
+                        Ver lista completa
+                      </button>
+                    </div>
+                  )}
+                  {editable && (
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => setEditing("new")}
+                    >
+                      <Icon name="plus" size={17} />
+                      Añadir paso
+                    </button>
+                  )}
+                </div>
               </div>
               {steps.length ? (
-                <div className="steps">
-                  {steps.map((step) => (
-                    <article key={step.id}>
-                      <span className="step-number">{step.position}</span>
-                      <div>
-                        <KnowledgeChip
-                          origin={step.origin}
-                          validation={step.validation_status}
-                        />
-                        <h3>{step.instruction}</h3>
-                        <p>{step.expected_result}</p>
-                        <small>
-                          {
-                            {
-                              observed: "Observado durante la captura",
-                              inferred: "Deducido por el análisis",
-                              user_explained: "Explicado por el autor",
-                            }[step.origin]
-                          }
-                        </small>
-                        {editable && (
-                          <div className="button-group">
-                            <button
-                              className="text-button"
-                              onClick={() => setEditing(step)}
-                              disabled={busy}
-                            >
-                              Editar paso
-                            </button>
-                            <button
-                              className="text-button"
-                              onClick={() => setLinking(step)}
-                              disabled={busy}
-                            >
-                              Vincular evidencia
-                            </button>
-                          </div>
-                        )}
+                stepView === "carousel" ? (
+                  <div className="step-carousel">
+                    <div className="step-carousel-head">
+                      <button
+                        type="button"
+                        className="step-nav"
+                        aria-label="Paso anterior"
+                        disabled={stepIndex === 0}
+                        onClick={() => setStepIndex((i) => i - 1)}
+                      >
+                        <Icon name="arrow" size={16} />
+                      </button>
+                      <div
+                        className="step-dots"
+                        role="tablist"
+                        aria-label="Pasos del procedimiento"
+                      >
+                        {orderedSteps.map((s, i) => (
+                          <button
+                            type="button"
+                            key={s.id}
+                            role="tab"
+                            aria-selected={i === stepIndex}
+                            className={
+                              i === stepIndex
+                                ? "step-dot active"
+                                : s.validation_status !== "confirmed"
+                                  ? "step-dot pending"
+                                  : "step-dot"
+                            }
+                            onClick={() => setStepIndex(i)}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
                       </div>
-                    </article>
-                  ))}
-                </div>
+                      <button
+                        type="button"
+                        className="step-nav next"
+                        aria-label="Paso siguiente"
+                        disabled={stepIndex >= orderedSteps.length - 1}
+                        onClick={() => setStepIndex((i) => i + 1)}
+                      >
+                        <Icon name="arrow" size={16} />
+                      </button>
+                    </div>
+                    <p className="step-count">
+                      Paso {stepIndex + 1} de {orderedSteps.length}
+                    </p>
+                    {activeStep && (
+                      <article className="step-card">
+                        <span className="step-number">{activeStep.position}</span>
+                        <div>
+                          <KnowledgeChip
+                            origin={activeStep.origin}
+                            validation={activeStep.validation_status}
+                          />
+                          <h4>{activeStep.instruction}</h4>
+                          <p>{activeStep.expected_result}</p>
+                          <small>{originLabel(activeStep.origin)}</small>
+                          {editable && (
+                            <div className="button-group">
+                              <button
+                                className="text-button"
+                                onClick={() => setEditing(activeStep)}
+                                disabled={busy}
+                              >
+                                Editar paso
+                              </button>
+                              <button
+                                className="text-button"
+                                onClick={() => setLinking(activeStep)}
+                                disabled={busy}
+                              >
+                                Vincular evidencia
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    )}
+                  </div>
+                ) : (
+                  <div className="steps">
+                    {orderedSteps.map((step) => (
+                      <article key={step.id}>
+                        <span className="step-number">{step.position}</span>
+                        <div>
+                          <KnowledgeChip
+                            origin={step.origin}
+                            validation={step.validation_status}
+                          />
+                          <h3>{step.instruction}</h3>
+                          <p>{step.expected_result}</p>
+                          <small>{originLabel(step.origin)}</small>
+                          {editable && (
+                            <div className="button-group">
+                              <button
+                                className="text-button"
+                                onClick={() => setEditing(step)}
+                                disabled={busy}
+                              >
+                                Editar paso
+                              </button>
+                              <button
+                                className="text-button"
+                                onClick={() => setLinking(step)}
+                                disabled={busy}
+                              >
+                                Vincular evidencia
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )
               ) : (
                 <Empty title="Un buen proceso empieza con un primer paso">
                   Añade una instrucción y el resultado esperado.

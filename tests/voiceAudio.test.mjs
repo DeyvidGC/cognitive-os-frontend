@@ -154,6 +154,53 @@ test("PCM playback is signed little-endian, queued in order and stopped on hangu
   assert.ok(env.sources.every((item) => item.stopped));
   assert.equal(speaking.at(-1), false);
 });
+test("a response arriving ahead of playback can queue beyond eight seconds without ending the call", async () => {
+  const env = setup(), sent = [];
+  const audio = new VoiceAudio(() => {});
+  await audio.start((data) => sent.push(data));
+  const chunk = new ArrayBuffer(24000 * 2);
+  for (let i = 0; i < 30; i++) audio.play(chunk);
+  assert.equal(env.sources.length, 30);
+  for (let i = 1; i < env.sources.length; i++)
+    assert.equal(env.sources[i].at, env.sources[i - 1].at + 1);
+  assert.ok(env.sources.every((source) => !source.stopped));
+  env.worklet().port.onmessage({ data: chunk });
+  assert.equal(sent.length, 1);
+  assert.equal(env.track.stopped, false);
+  assert.equal(env.context().closed, undefined);
+  audio.stop();
+});
+
+test("excessive output resets only playback and microphone transmission continues", async () => {
+  const env = setup(), sent = [];
+  let resets = 0;
+  const audio = new VoiceAudio(() => {}, () => resets++);
+  await audio.start((data) => sent.push(data));
+  const chunk = new ArrayBuffer(24000 * 2 * 60);
+  audio.play(chunk);
+  audio.play(chunk);
+  assert.equal(resets, 1);
+  assert.equal(env.sources[0].stopped, true);
+  assert.equal(env.sources[1].at, env.context().currentTime + 0.02);
+  env.worklet().port.onmessage({ data: new ArrayBuffer(960) });
+  assert.equal(sent.length, 1);
+  assert.equal(env.track.stopped, false);
+  assert.equal(env.context().closed, undefined);
+  audio.stop();
+});
+
+test("an oversized single audio packet is discarded without allocating playback buffers", () => {
+  const env = setup();
+  let resets = 0;
+  const audio = new VoiceAudio(() => {}, () => resets++);
+  audio.play(new ArrayBuffer(24000 * 2 * 121));
+  assert.equal(resets, 1);
+  assert.equal(env.buffers.length, 0);
+  audio.play(new ArrayBuffer(960));
+  assert.equal(env.sources.length, 1);
+  audio.stop();
+});
+
 test("AudioWorklet downmixes and encodes 20ms mono PCM chunks below the minimum server limit", async () => {
   const source = await readFile(
     new URL("../public/voice-capture.worklet.js", import.meta.url),
@@ -183,4 +230,25 @@ test("AudioWorklet downmixes and encodes 20ms mono PCM chunks below the minimum 
   assert.equal(pcm.getInt16(0, true), -32768);
   assert.equal(pcm.getInt16(2, true), 32767);
   assert.equal(pcm.getInt16(4, true), 16384);
+});
+
+test("barge-in stops queued output, reports heard duration and drops late audio until next item", async () => {
+  const env = setup(), sent = [];
+  const audio = new VoiceAudio(() => {});
+  await audio.start((data) => sent.push(data));
+  audio.beginItem("answer-1");
+  audio.play(new ArrayBuffer(48000 * 4));
+  audio.play(new ArrayBuffer(48000));
+  env.context().currentTime = 1.52;
+  assert.deepEqual(audio.interrupt(), { item_id: "answer-1", audio_end_ms: 500 });
+  assert.ok(env.sources.every((source) => source.stopped));
+  audio.play(new ArrayBuffer(960));
+  assert.equal(env.sources.length, 2);
+  env.worklet().port.onmessage({ data: new ArrayBuffer(960) });
+  assert.equal(sent.length, 1);
+  assert.equal(env.track.stopped, false);
+  audio.beginItem("answer-2");
+  audio.play(new ArrayBuffer(960));
+  assert.equal(env.sources.length, 3);
+  audio.stop();
 });
