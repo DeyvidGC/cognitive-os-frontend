@@ -1,5 +1,6 @@
+import { snapshot } from "./snapshot";
 import { useEffect, useRef, useState } from "react";
-import { allPages, ApiError } from "../../shared/api";
+import { allPages } from "../../shared/api";
 import type { Client } from "../../shared/api";
 import type { CaptureState } from "../capture/screenCapture";
 import { ErrorNotice } from "../../shared/ui";
@@ -86,25 +87,48 @@ export default function LiveAgent({
   }, [api, sessionId, historyKey]);
   useEffect(() => {
     let active = true;
-    api<{ id: string; question: string; answer: string | null }[]>(`/learning-sessions/${sessionId}/clarifications`)
+    api<{ id: string; question: string; answer: string | null }[]>(
+      `/learning-sessions/${sessionId}/clarifications`,
+    )
       .then((items) => {
         if (!active) return;
         const next = items.find((item) => !item.answer);
         setQuestionId(next?.id || null);
         setInterruption(next?.question || "");
-      }).catch(() => { if (active) setError("No se pudieron recuperar las preguntas pendientes."); });
-    return () => { active = false; };
+      })
+      .catch(() => {
+        if (active)
+          setError("No se pudieron recuperar las preguntas pendientes.");
+      });
+    return () => {
+      active = false;
+    };
   }, [api, sessionId, historyKey]);
   useEffect(() => {
     autoSend.current = () => {
-      if (!busy && !retry && !questionId && !text.trim() && capture?.phase === "recording") void send(true, false, true);
+      if (
+        !busy &&
+        !retry &&
+        !questionId &&
+        !text.trim() &&
+        capture?.phase === "recording"
+      )
+        void send(true, false, true);
     };
   });
   useEffect(() => {
-    if (!automatic || !proactiveSupported || !connected || !consent || !canSend) return;
+    if (!automatic || !proactiveSupported || !connected || !consent || !canSend)
+      return;
     const timer = setInterval(() => autoSend.current(), observationInterval);
     return () => clearInterval(timer);
-  }, [automatic, proactiveSupported, connected, consent, canSend, observationInterval]);
+  }, [
+    automatic,
+    proactiveSupported,
+    connected,
+    consent,
+    canSend,
+    observationInterval,
+  ]);
   useEffect(
     () => () => {
       generation.current++;
@@ -153,7 +177,8 @@ export default function LiveAgent({
       }
     }, 20000);
     ws.onmessage = (event) => {
-      if (socket.current !== ws || generation.current !== connectionGeneration) return;
+      if (socket.current !== ws || generation.current !== connectionGeneration)
+        return;
       try {
         const result = JSON.parse(event.data);
         if (result.type === "ready") {
@@ -163,7 +188,12 @@ export default function LiveAgent({
             Number(result.min_interval_seconds || 3) * 1000,
           );
           setProactiveSupported(result.proactive_questions === true);
-          setObservationInterval(Math.max(15000, Number(result.observation_interval_seconds || 15) * 1000));
+          setObservationInterval(
+            Math.max(
+              15000,
+              Number(result.observation_interval_seconds || 15) * 1000,
+            ),
+          );
           setConnected(true);
           setHistoryKey((value) => value + 1);
           setStatus("Agente conectado");
@@ -173,8 +203,12 @@ export default function LiveAgent({
           clearTimeout(timeout.current);
           const input = pending.current;
           const clarification = result.reply?.clarifications?.[0];
-          const question = clarification?.question || result.reply?.questions?.join(" ");
-          if (input?.clarification_id) { setQuestionId(null); setInterruption(""); }
+          const question =
+            clarification?.question || result.reply?.questions?.join(" ");
+          if (input?.clarification_id) {
+            setQuestionId(null);
+            setInterruption("");
+          }
           if (clarification) setQuestionId(clarification.clarification_id);
           if (question) {
             setInterruption(question);
@@ -261,7 +295,10 @@ export default function LiveAgent({
           type: withImage ? "observe" : "message",
           message_id: crypto.randomUUID(),
           text: auto ? "" : text.trim(),
-          offset_ms: Math.min(1800000, Math.round((capture?.seconds || 0) * 1000)),
+          offset_ms: Math.min(
+            1800000,
+            Math.round((capture?.seconds || 0) * 1000),
+          ),
           ...(!withImage && questionId ? { clarification_id: questionId } : {}),
         };
         if (withImage) {
@@ -300,14 +337,17 @@ export default function LiveAgent({
     } catch (e) {
       setBusy(false);
       setError(e instanceof Error ? e.message : "No se pudo enviar el turno.");
-    } finally { sending.current = false; }
+    } finally {
+      sending.current = false;
+    }
   }
   return (
     <section className="live-agent">
       <h4>Agente en vivo</h4>
       <p role="status">{status}</p>
       <p className="connection-note">
-        Conversa por texto o dictado. Puedes autorizar capturas periódicas durante la grabación para que el agente detecte dudas.
+        Conversa por texto o dictado. Puedes autorizar capturas periódicas
+        durante la grabación para que el agente detecte dudas.
       </p>
       <ErrorNotice error={error} />
       {interruption && (
@@ -342,7 +382,8 @@ export default function LiveAgent({
             Leer en voz alta las preguntas recibidas
           </label>
           <small>
-            Las preguntas se guardan como aclaraciones. Puedes responder aquí por texto o dictado y confirmar el envío.
+            Las preguntas se guardan como aclaraciones. Puedes responder aquí
+            por texto o dictado y confirmar el envío.
           </small>
           {!capture?.stream && (
             <p className="connection-note">
@@ -362,12 +403,18 @@ export default function LiveAgent({
                 }
               }}
             />
-            Autorizo enviar mis mensajes y capturas al agente, incluidas las periódicas si activo esa opción.
+            Autorizo enviar mis mensajes y capturas al agente, incluidas las
+            periódicas si activo esa opción.
           </label>
           <label className="checkbox">
-            <input type="checkbox" checked={automatic} disabled={!connected || !proactiveSupported}
-              onChange={(event) => setAutomatic(event.target.checked)} />
-            Observar mientras grabo y preguntar si hay dudas (cada {observationInterval / 1000} segundos)
+            <input
+              type="checkbox"
+              checked={automatic}
+              disabled={!connected || !proactiveSupported}
+              onChange={(event) => setAutomatic(event.target.checked)}
+            />
+            Observar mientras grabo y preguntar si hay dudas (cada{" "}
+            {observationInterval / 1000} segundos)
           </label>
           <div className="button-group">
             <button
@@ -486,31 +533,4 @@ export default function LiveAgent({
       </button>
     </section>
   );
-}
-
-async function snapshot(stream: MediaStream): Promise<string> {
-  const video = document.createElement("video");
-  video.muted = true;
-  video.srcObject = stream;
-  try {
-    await video.play();
-    if (!video.videoWidth || !video.videoHeight)
-      throw new ApiError(0, "La pantalla aún no está lista.");
-    const scale = Math.min(1, 1280 / video.videoWidth, 720 / video.videoHeight);
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("No se pudo capturar la pantalla.");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const result = canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
-    if (result.length * 0.75 > 512 * 1024)
-      throw new Error(
-        "La captura supera el tamaño admitido. Reduce la ventana y vuelve a intentar.",
-      );
-    return result;
-  } finally {
-    video.pause();
-    video.srcObject = null;
-  }
 }

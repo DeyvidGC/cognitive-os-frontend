@@ -89,41 +89,34 @@ export default function ScreenStudio({
       aria-label="Pantalla y agente de aprendizaje"
     >
       {/*
-        La cabecera sólo lleva lo que cambia durante la captura. El texto que
-        explicaba el propósito de la pantalla vivía aquí y se leía una vez.
+        La cabecera sólo lleva lo que cambia durante la captura: el estado en
+        vivo. El título del bloque ya lo da la pestaña "Compartir pantalla".
       */}
       <div className="studio-heading">
-        <h2>Pantalla de la sesión</h2>
+        <h2>Vista previa</h2>
         <span className="studio-phase">
           <i className={phase === "recording" ? "recording-dot" : ""} />
           {status}
         </span>
       </div>
-      {clip && capabilities ? (
-        <RecordingUploadPanel
-          key={clip}
-          api={api}
-          sessionId={sessionId}
-          clip={clip}
-          duration={state.seconds}
-          capabilities={capabilities}
-          existing={existing}
-          onSaved={onSaved}
-          onBusy={onBusy}
-        />
-      ) : (
-        <div className="recording-storage">
-          <Icon name="video" size={22} />
-          <div>
-            <strong>Video de la sesión</strong>
-            <p>
-              {clip
-                ? "Descarga tu copia local. Conecta una API con soporte de grabaciones para guardarla."
-                : "Graba el proceso, guarda el video y luego inicia su análisis."}
-            </p>
-          </div>
-        </div>
-      )}
+      {clip &&
+        (capabilities ? (
+          <RecordingUploadPanel
+            key={clip}
+            api={api}
+            sessionId={sessionId}
+            clip={clip}
+            duration={state.seconds}
+            capabilities={capabilities}
+            existing={existing}
+            onSaved={onSaved}
+            onBusy={onBusy}
+          />
+        ) : (
+          <p className="connection-note">
+            Comprobando los límites de subida antes de continuar…
+          </p>
+        ))}
       <div className="studio-grid">
         <div className="studio-screen">
           <div className="screen-chrome">

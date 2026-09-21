@@ -17,9 +17,11 @@ export default function Auth({
       <section className="auth-story">
         <a className="brand" href="/">
           <span className="brand-mark">
-            <Icon name="spark" size={25} />
+            <Icon name="spark" size={19} />
           </span>
-          cognitive<span className="brand-os">OS</span>
+          <span className="brand-word">
+            cognitive<span className="brand-os">OS</span>
+          </span>
         </a>
         <div className="auth-message">
           <span className="eyebrow">EL CONOCIMIENTO EMPIEZA CONTIGO</span>

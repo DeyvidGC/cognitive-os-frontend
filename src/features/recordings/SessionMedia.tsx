@@ -13,7 +13,7 @@ import ScreenStudio from "../capture/ScreenStudio";
 import AgentConversation from "../agent/AgentConversation";
 import RecordingReport from "./RecordingReport";
 import RecordingUploadPanel from "./RecordingUploadPanel";
-import { Badge, ErrorNotice, Icon } from "../../shared/ui";
+import { Badge, ErrorNotice, Icon, Select } from "../../shared/ui";
 import { date, useAction } from "../../shared/utils";
 import "./SessionMedia.css";
 import SessionJobs from "../sessions/SessionJobs";
@@ -28,6 +28,7 @@ export default function SessionMedia({
   onRecordingsChange,
   onSessionChange,
   onContextChange,
+  initialSource = "share",
 }: {
   api: Client;
   onOpenProcedure: (procedureId: string, versionId: string) => Promise<void>;
@@ -39,6 +40,7 @@ export default function SessionMedia({
   onRecordingsChange: (items: Recording[]) => void;
   onSessionChange: (session: Session) => void;
   onContextChange: () => Promise<void>;
+  initialSource?: "share" | "upload";
 }) {
   const [capabilities, setCapabilities] =
     useState<RecordingCapabilities | null>(null);
@@ -54,6 +56,7 @@ export default function SessionMedia({
   const [playbackError, setPlaybackError] = useState(false);
   const [externalClip, setExternalClip] = useState("");
   const [externalTitle, setExternalTitle] = useState("");
+  const [source, setSource] = useState<"share" | "upload">(initialSource);
   const [captureProtected, setCaptureProtected] = useState(false);
   const [reportDirty, setReportDirty] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -69,6 +72,16 @@ export default function SessionMedia({
     recordings[0];
   // Permission for processing/retry persists after capture closes, unlike message-writing permission.
   const editableRecording = canManage && session.status !== "completed";
+  // A pending upload reservation must not be hidden behind the "share" tab by default.
+  useEffect(() => {
+    if (item?.status === "uploading" && item.origin === "upload")
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSource("upload");
+  }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Computed once so the tab picker, the panel choice and the read-only
+  // fallback below can never disagree about which source is showing.
+  const showCapture = writable && (!item || item.status === "uploading");
+  const usingScreenStudio = showCapture && source === "share" && !externalClip;
   const protectedState =
     captureProtected || reportDirty || !!externalClip || uploadBusy;
   useEffect(() => {
@@ -256,122 +269,140 @@ export default function SessionMedia({
             "La grabación local continúa. Los datos se consultarán de nuevo automáticamente."}
         </div>
       )}
-      {capabilities && (
-        <div className="capabilities-note">
-          <span>
-            <Icon name="clock" size={14} />
-            {Math.floor(capabilities.max_seconds / 60)} min por video
-          </span>
-          <span>{Math.floor(capabilities.max_bytes / 1048576)} MB máximo</span>
-          <span>
-            {capabilities.max_recordings_per_session} video por sesión
-          </span>
-          <span>
-            Análisis posterior · audio{" "}
-            {capabilities.audio_supported ? "compatible" : "no analizado"}
-          </span>
-        </div>
-      )}
-      {capabilities && writable && (!item || item.status === "uploading") && (
-        <section className="panel import-video">
-          <h3>
-            {item
-              ? "Continuar una subida anterior"
-              : "Subir un video para analizar"}
-          </h3>
-          <p>
-            {item
-              ? "Selecciona el mismo archivo. Un video diferente no debe usarse para recuperar esta reserva."
-              : "También puedes subir un WebM o MP4 desde tu equipo."}
-          </p>
-          <label>
-            Seleccionar video
-            <input
-              type="file"
-              accept="video/webm,video/mp4,.webm,.mp4"
-              disabled={uploadBusy || captureProtected}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void run(async () => {
-                  const blob = file.type
-                    ? file
-                    : new Blob([file], {
-                        type: file.name.toLowerCase().endsWith(".mp4")
-                          ? "video/mp4"
-                          : "video/webm",
-                      });
-                  validateVideo(blob, capabilities);
-                  if (
-                    item &&
-                    (item.size_bytes !== blob.size ||
-                      item.media_type !== blob.type.split(";")[0])
-                  )
-                    throw new Error(
-                      "El archivo no coincide con el tamaño y formato de la reserva pendiente.",
-                    );
-                  setExternalTitle(file.name.slice(0, 200));
-                  setExternalClip(URL.createObjectURL(blob));
-                });
-              }}
-            />
-          </label>
-          {externalClip && (
-            <div>
-              <video
-                className="saved-player"
-                src={externalClip}
-                controls
-                playsInline
-                preload="metadata"
-                aria-label="Vista previa del video seleccionado"
-              />
+      {showCapture && (
+        <section className="panel source-picker">
+          {!captureProtected && !externalClip && (
+            <div className="source-tabs" role="tablist" aria-label="Origen del video">
               <button
-                className="text-button"
                 type="button"
-                disabled={uploadBusy}
-                onClick={() => setExternalClip("")}
+                role="tab"
+                aria-selected={source === "share"}
+                onClick={() => setSource("share")}
               >
-                Quitar video seleccionado
+                <Icon name="monitor" size={15} />
+                Compartir pantalla
               </button>
-              <RecordingUploadPanel
-                key={externalClip}
-                api={api}
-                sessionId={session.id}
-                clip={externalClip}
-                origin="upload"
-                title={externalTitle}
-                capabilities={capabilities}
-                existing={item}
-                onSaved={saved}
-                onBusy={setUploadBusy}
-              />
+              <button
+                type="button"
+                role="tab"
+                aria-selected={source === "upload"}
+                onClick={() => setSource("upload")}
+              >
+                <Icon name="upload" size={15} />
+                Subir un archivo
+              </button>
             </div>
+          )}
+          {!usingScreenStudio ? (
+            <div className="import-video">
+              <h3>
+                {item
+                  ? "Continuar una subida anterior"
+                  : "Subir un video para analizar"}
+              </h3>
+              <p>
+                {item
+                  ? "Selecciona el mismo archivo. Un video diferente no debe usarse para recuperar esta reserva."
+                  : "Sube un WebM o MP4 desde tu equipo."}
+              </p>
+              {capabilities ? (
+                <label>
+                  Seleccionar video
+                  <input
+                    type="file"
+                    accept="video/webm,video/mp4,.webm,.mp4"
+                    disabled={uploadBusy || captureProtected}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      void run(async () => {
+                        const blob = file.type
+                          ? file
+                          : new Blob([file], {
+                              type: file.name.toLowerCase().endsWith(".mp4")
+                                ? "video/mp4"
+                                : "video/webm",
+                            });
+                        validateVideo(blob, capabilities);
+                        if (
+                          item &&
+                          (item.size_bytes !== blob.size ||
+                            item.media_type !== blob.type.split(";")[0])
+                        )
+                          throw new Error(
+                            "El archivo no coincide con el tamaño y formato de la reserva pendiente.",
+                          );
+                        setExternalTitle(file.name.slice(0, 200));
+                        setExternalClip(URL.createObjectURL(blob));
+                      });
+                    }}
+                  />
+                </label>
+              ) : (
+                <p className="connection-note">
+                  Comprobando los límites de subida antes de continuar…
+                </p>
+              )}
+              {externalClip && (
+                <div>
+                  <video
+                    className="saved-player"
+                    src={externalClip}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label="Vista previa del video seleccionado"
+                  />
+                  <button
+                    className="text-button"
+                    type="button"
+                    disabled={uploadBusy}
+                    onClick={() => setExternalClip("")}
+                  >
+                    Quitar video seleccionado
+                  </button>
+                  {capabilities && (
+                    <RecordingUploadPanel
+                      key={externalClip}
+                      api={api}
+                      sessionId={session.id}
+                      clip={externalClip}
+                      origin="upload"
+                      title={externalTitle}
+                      capabilities={capabilities}
+                      existing={item}
+                      onSaved={saved}
+                      onBusy={setUploadBusy}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <ScreenStudio
+              api={api}
+              sessionId={session.id}
+              onProtectedChange={setCaptureProtected}
+              capabilities={capabilities}
+              existing={item}
+              onSaved={saved}
+              onBusy={setUploadBusy}
+              agentPanel={(capture) => (
+                <AgentConversation
+                  capture={capture}
+                  canAnswer={canManage && session.status !== "processing"}
+                  api={api}
+                  session={session}
+                  writable={writable}
+                  onContextChange={onContextChange}
+                />
+              )}
+            />
           )}
         </section>
       )}
-      {writable && !externalClip && (!item || item.status === "uploading") ? (
-        <ScreenStudio
-          api={api}
-          sessionId={session.id}
-          onProtectedChange={setCaptureProtected}
-          capabilities={capabilities}
-          existing={item}
-          onSaved={saved}
-          onBusy={setUploadBusy}
-          agentPanel={(capture) => (
-            <AgentConversation
-              capture={capture}
-              canAnswer={canManage && session.status !== "processing"}
-              api={api}
-              session={session}
-              writable={writable}
-              onContextChange={onContextChange}
-            />
-          )}
-        />
-      ) : (
+      {!usingScreenStudio && (
         <details className="session-conversation-only panel">
           <summary>Conversación y contexto de la sesión</summary>
           <AgentConversation
@@ -387,10 +418,10 @@ export default function SessionMedia({
       {recordings.length > 1 && (
         <label className="recording-picker">
           Videos de esta sesión
-          <select
+          <Select
+            ariaLabel="Videos de esta sesión"
             value={item?.id || ""}
-            onChange={async (event) => {
-              const id = event.target.value;
+            onChange={async (id) => {
               if (
                 protectedState &&
                 !(await confirmAction(
@@ -405,13 +436,11 @@ export default function SessionMedia({
               playbackPosition.current = 0;
               seek.current = null;
             }}
-          >
-            {recordings.map((recording, index) => (
-              <option key={recording.id} value={recording.id}>
-                Video {index + 1} · {date(recording.created_at)}
-              </option>
-            ))}
-          </select>
+            options={recordings.map((recording, index) => ({
+              value: recording.id,
+              label: `Video ${index + 1} · ${date(recording.created_at)}`,
+            }))}
+          />
         </label>
       )}
       <SessionJobs

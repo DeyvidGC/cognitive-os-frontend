@@ -1,0 +1,97 @@
+/*
+  Asistente flotante: disponible en cualquier pantalla, siempre sobre lo que
+  la persona tiene delante (un documento, una sesión, un procedimiento).
+  Vive fuera del flujo del contenido, por eso usa posición fija propia.
+*/
+.floating-assistant {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+.floating-assistant-launch {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent-deep);
+  color: #eff7f4;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 30px #093f3852;
+  flex-shrink: 0;
+}
+.floating-assistant-launch:hover {
+  background: var(--accent);
+}
+.floating-assistant-launch span {
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 300;
+}
+.floating-assistant-panel {
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px #1b2a2640;
+  overflow: hidden;
+}
+.floating-assistant-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.floating-assistant-eyebrow {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  margin-bottom: 5px;
+}
+.floating-assistant-panel h2 {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.floating-assistant-scroll {
+  flex: 1;
+  min-height: 220px;
+  max-height: none;
+  padding: 16px;
+}
+.floating-assistant-panel .chat-empty {
+  padding: 10px 0;
+}
+.floating-assistant-panel .chat-bubble {
+  max-width: 85%;
+  font-size: 12.5px;
+}
+.floating-assistant-panel .chat-composer {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+.floating-assistant-panel .chat-composer .primary {
+  padding: 0 14px;
+}
+@media (max-width: 480px) {
+  .floating-assistant {
+    right: 14px;
+    bottom: 14px;
+  }
+  .floating-assistant-panel {
+    width: calc(100vw - 28px);
+  }
+}

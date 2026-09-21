@@ -8,6 +8,7 @@ export type User = {
   display_name: string;
   email: string;
   memberships: Membership[];
+  is_platform_staff?: boolean;
 };
 export type Session = {
   id: string;
@@ -48,7 +49,7 @@ export type Evidence = {
 export type Event = {
   id: string;
   sequence_number: number;
-  payload: { text: string };
+  payload: { text: string; speaker?: "user" | "assistant" };
   offset_ms: number;
 };
 export type Clarification = {
@@ -75,11 +76,16 @@ const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(
   "",
 );
 const translations: Record<string, string> = {
-  "Resolve pending clarifications before exporting": "Responde todas las aclaraciones antes de generar el documento.",
-  "Revise the rejected report before exporting": "Corrige el informe rechazado antes de exportarlo.",
-  "Document exports are busy; retry shortly": "Hay documentos en preparación. Inténtalo de nuevo en un momento.",
-  "Document generation failed; verify the video and retry": "No se pudo generar el documento. Verifica el video e inténtalo de nuevo.",
-  "Video captures no longer match the analyzed evidence": "Las capturas no coinciden con el análisis. Regenera el informe antes de exportar.",
+  "Resolve pending clarifications before exporting":
+    "Responde todas las aclaraciones antes de generar el documento.",
+  "Revise the rejected report before exporting":
+    "Corrige el informe rechazado antes de exportarlo.",
+  "Document exports are busy; retry shortly":
+    "Hay documentos en preparación. Inténtalo de nuevo en un momento.",
+  "Document generation failed; verify the video and retry":
+    "No se pudo generar el documento. Verifica el video e inténtalo de nuevo.",
+  "Video captures no longer match the analyzed evidence":
+    "Las capturas no coinciden con el análisis. Regenera el informe antes de exportar.",
   "Invalid credentials": "El correo o la contraseña no son correctos.",
   "Registration is disabled":
     "El registro está deshabilitado en la API. Contacta al administrador.",
@@ -99,6 +105,25 @@ const translations: Record<string, string> = {
     "Responde las aclaraciones pendientes antes de finalizar.",
   "Add at least one event or evidence before finishing":
     "Añade una nota o una evidencia antes de finalizar.",
+  "Chatbot provider unavailable or not configured":
+    "El chatbot de IA no está disponible en este momento. Inténtalo de nuevo más tarde.",
+  "Policy chatbot provider unavailable or not configured":
+    "El asistente de pólizas no está disponible en este momento. Inténtalo de nuevo más tarde.",
+  "Policy document exceeds size limit":
+    "El documento supera el tamaño máximo permitido.",
+  "This upload already exists with different data":
+    "Ya hay una subida con ese identificador pero con otro contenido. Intenta de nuevo.",
+  "Policy document is already uploaded":
+    "Este documento ya se terminó de subir.",
+  "Policy document is not uploaded yet":
+    "Este documento todavía no se terminó de subir.",
+  "Only a failed policy document can be retried":
+    "Solo puedes reintentar un documento con error de lectura.",
+  "Only a ready or failed policy document can be retired":
+    "Solo puedes retirar un documento ya analizado o con error.",
+  "Open knowledge gap not found":
+    "Ese vacío de conocimiento ya no está abierto.",
+  "Capture access denied": "No tienes permisos para esta acción.",
 };
 export function client(token = "", organization = "", onExpired?: () => void) {
   async function request<T>(
@@ -151,9 +176,9 @@ export function client(token = "", organization = "", onExpired?: () => void) {
     return response.json();
   }
   return Object.assign(request, {
-    agentSocket(sessionId: string) {
+    agentSocket(sessionId: string, mode: "live" | "live-voice" = "live") {
       const url = new URL(
-        `${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/live`,
+        `${base}/learning-sessions/${encodeURIComponent(sessionId)}/agent/${mode}`,
         window.location.href,
       );
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";

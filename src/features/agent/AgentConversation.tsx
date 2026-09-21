@@ -5,6 +5,7 @@ import type { Client, Clarification, Event, Session } from "../../shared/api";
 import { ErrorNotice, Icon } from "../../shared/ui";
 import { useAction } from "../../shared/utils";
 import LiveAgent from "./LiveAgent";
+import LiveVoiceAgent from "./LiveVoiceAgent";
 import type { CaptureState } from "../capture/screenCapture";
 export default function AgentConversation({
   api,
@@ -22,12 +23,14 @@ export default function AgentConversation({
   canAnswer?: boolean;
 }) {
   const [events, setEvents] = useState<Event[]>([]);
+  const [agentMode, setAgentMode] = useState<"voice" | "text">("voice");
   const [questions, setQuestions] = useState<Clarification[]>([]);
   const [text, setText] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"conversation" | "questions">("conversation");
   const [connection, setConnection] = useState("Cargando contexto…");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [questionIndex, setQuestionIndex] = useState(0);
   const { run, busy, error } = useAction();
   const pending = useRef<Record<string, unknown> | null>(null);
   useEffect(() => {
@@ -80,13 +83,47 @@ export default function AgentConversation({
         <i />
         Conversación en vivo y contexto del aprendizaje
       </span>
-      <LiveAgent
-        api={api}
-        sessionId={session.id}
-        allowed={writable}
-        capture={capture}
-        onReply={onContextChange}
-      />
+      <div className="mode-switch" role="tablist" aria-label="Modo del agente">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={agentMode === "voice"}
+          onClick={() => setAgentMode("voice")}
+        >
+          <Icon name="mic" size={14} />
+          Llamada en vivo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={agentMode === "text"}
+          onClick={() => setAgentMode("text")}
+        >
+          <Icon name="message" size={14} />
+          Chat por texto
+        </button>
+      </div>
+      <small>Cambiar de modo finaliza la conexión actual.</small>
+      {agentMode === "voice" ? (
+        <LiveVoiceAgent
+          api={api}
+          sessionId={session.id}
+          allowed={writable && session.status === "capturing"}
+          capture={capture}
+          onChanged={async () => {
+            setRefreshKey((key) => key + 1);
+            await onContextChange();
+          }}
+        />
+      ) : (
+        <LiveAgent
+          api={api}
+          sessionId={session.id}
+          allowed={writable}
+          capture={capture}
+          onReply={onContextChange}
+        />
+      )}
       <div
         className="conversation-tabs"
         role="tablist"
@@ -116,7 +153,13 @@ export default function AgentConversation({
           events.length ? (
             events.map((e) => (
               <article className="chat-note" key={e.id}>
-                <small>Contexto guardado</small>
+                <small>
+                  {e.payload.speaker === "assistant"
+                    ? "Agente · voz en vivo"
+                    : e.payload.speaker === "user"
+                      ? "Tú · voz en vivo"
+                      : "Contexto guardado"}
+                </small>
                 <p>{e.payload.text}</p>
               </article>
             ))
@@ -130,52 +173,115 @@ export default function AgentConversation({
             </div>
           )
         ) : questions.length ? (
-          questions.map((q) => (
-            <article className="chat-question" key={q.id}>
-              <small>{q.answer ? "Resuelta" : "Respuesta pendiente"}</small>
-              <h4>{q.question}</h4>
-              {q.answer ? (
-                <p>{q.answer}</p>
-              ) : canAnswer ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const answer = new FormData(e.currentTarget).get("answer");
-                    void run(async () => {
-                      const updated = await api<Clarification>(
-                        `/learning-sessions/${session.id}/clarifications/${q.id}/answer`,
-                        json({ answer }, "PUT"),
-                      );
-                      setQuestions((items) =>
-                        items.map((item) =>
-                          item.id === updated.id ? updated : item,
-                        ),
-                      );
-                      setRefreshKey((key) => key + 1);
-                      await onContextChange();
-                    });
-                  }}
-                >
-                  <VoiceInput
-                    question={q.question}
-                    name="answer"
-                    value={answers[q.id] || ""}
-                    disabled={busy}
-                    onChange={(value) =>
-                      setAnswers((previous) => ({ ...previous, [q.id]: value }))
-                    }
-                  />
-                  <button className="secondary" disabled={busy}>
-                    Responder
+          (() => {
+            const index = Math.min(questionIndex, questions.length - 1);
+            const q = questions[index];
+            return (
+              <>
+                <div className="step-carousel-head">
+                  <button
+                    type="button"
+                    className="step-nav"
+                    aria-label="Pregunta anterior"
+                    disabled={index === 0}
+                    onClick={() => setQuestionIndex(index - 1)}
+                  >
+                    <Icon name="arrow" size={14} />
                   </button>
-                </form>
-              ) : (
-                <p>
-                  La sesión está cerrada o no tienes permiso para responder.
+                  <div
+                    className="step-dots"
+                    role="tablist"
+                    aria-label="Preguntas de la sesión"
+                  >
+                    {questions.map((item, i) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        role="tab"
+                        aria-selected={i === index}
+                        className={
+                          i === index
+                            ? `step-dot active${item.answer ? "" : " pending"}`
+                            : `step-dot${item.answer ? "" : " pending"}`
+                        }
+                        onClick={() => setQuestionIndex(i)}
+                      >
+                        {item.answer ? (
+                          <Icon name="check" size={12} />
+                        ) : (
+                          i + 1
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="step-nav next"
+                    aria-label="Pregunta siguiente"
+                    disabled={index >= questions.length - 1}
+                    onClick={() => setQuestionIndex(index + 1)}
+                  >
+                    <Icon name="arrow" size={14} />
+                  </button>
+                </div>
+                <p className="step-count">
+                  Pregunta {index + 1} de {questions.length}
                 </p>
-              )}
-            </article>
-          ))
+                <article className="chat-question" key={q.id}>
+                  <small>{q.answer ? "Resuelta" : "Respuesta pendiente"}</small>
+                  <h4>{q.question}</h4>
+                  {q.answer ? (
+                    <p>{q.answer}</p>
+                  ) : canAnswer ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const answer = new FormData(e.currentTarget).get(
+                          "answer",
+                        );
+                        void run(async () => {
+                          const updated = await api<Clarification>(
+                            `/learning-sessions/${session.id}/clarifications/${q.id}/answer`,
+                            json({ answer }, "PUT"),
+                          );
+                          setQuestions((items) =>
+                            items.map((item) =>
+                              item.id === updated.id ? updated : item,
+                            ),
+                          );
+                          setRefreshKey((key) => key + 1);
+                          if (index < questions.length - 1)
+                            setQuestionIndex(index + 1);
+                          await onContextChange();
+                        });
+                      }}
+                    >
+                      <VoiceInput
+                        question={q.question}
+                        name="answer"
+                        value={answers[q.id] || ""}
+                        disabled={busy}
+                        onChange={(value) =>
+                          setAnswers((previous) => ({
+                            ...previous,
+                            [q.id]: value,
+                          }))
+                        }
+                      />
+                      <button className="secondary" disabled={busy}>
+                        Responder
+                      </button>
+                    </form>
+                  ) : (
+                    <p>
+                      La sesión está cerrada o no tienes permiso para
+                      responder.
+                    </p>
+                  )}
+                </article>
+              </>
+            );
+          })()
         ) : (
           <div className="chat-empty">
             <Icon name="check" size={25} />
@@ -186,7 +292,7 @@ export default function AgentConversation({
       <ErrorNotice error={error} />
       {tab === "conversation" && (
         <form
-          className="chat-composer"
+          className="agent-composer"
           onSubmit={(e) => {
             e.preventDefault();
             void run(async () => {

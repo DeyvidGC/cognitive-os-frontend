@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { json } from "../../shared/api";
 import type { Client } from "../../shared/api";
 import type { RecordingReport } from "./recordings";
-import { ErrorNotice } from "../../shared/ui";
+import { ErrorNotice, Select } from "../../shared/ui";
 
 export default function ReportDocument({
   api,
@@ -99,14 +99,16 @@ export default function ReportDocument({
       </fieldset>
       <label>
         Contenido{" "}
-        <select
+        <Select
+          ariaLabel="Contenido"
           disabled={busy}
           value={style}
-          onChange={(e) => setStyle(e.target.value)}
-        >
-          <option value="tutorial">Tutorial paso a paso</option>
-          <option value="report">Informe completo</option>
-        </select>
+          onChange={setStyle}
+          options={[
+            { value: "tutorial", label: "Tutorial paso a paso" },
+            { value: "report", label: "Informe completo" },
+          ]}
+        />
       </label>
       <ErrorNotice error={error} />
       <div className="button-group">

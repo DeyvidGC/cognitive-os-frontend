@@ -106,6 +106,26 @@ const server = http.createServer(async (req, res) => {
     if (reader && path.startsWith("/learning-sessions"))
       return send({ detail: "Capture access denied" }, 403);
     requests++;
+    // Synthetic dashboard data, scoped to this disposable fixture only.
+    if (path === "/dashboard/home") return send({ answered_today: 5, coverage: .75, open_gaps: 2, active_sessions: [], recent_activity: [
+      { id: "activity-1", actor_name: "Alex Rivera", action: "procedure.published", label: "publicó Gestión de cotizaciones", created_at: now },
+      { id: "activity-2", actor_name: "Cognitive IA", action: "report.created", label: "propuso pasos en Validar documentos del cliente", created_at: now }
+    ] });
+    if (path === "/chatbot/gaps") return send([
+      { id: "gap-1", question: "Convertir una orden en póliza", asked_count: 9, status: "open", created_at: now, last_asked_at: now, best_score: null },
+      { id: "gap-2", question: "Renovación automática", asked_count: 3, status: "open", created_at: now, last_asked_at: now, best_score: null }
+    ]);
+    if (path === "/usage/summary") {
+      const factor = Number(url.searchParams.get("days") || 7) / 7;
+      const total = Math.round(48 * factor);
+      const answered = Math.round(36 * factor);
+      return send({ since: now, questions: total, answered, coverage: answered / total, answered_today: 5, open_gaps: 2, per_day: [], top_questions: [
+        { topic: "Campos obligatorios de cliente", total: Math.round(15 * factor) },
+        { topic: "Crear y enviar una cotización", total: Math.round(12 * factor) },
+        { topic: "Tablas maestras", total: Math.round(9 * factor) }
+      ] });
+    }
+
     if (path === `/recordings/${demoRecording.id}/transcript`) return send({ text: "Comprueba que el nombre y el número coincidan.", analyzed: true, audio_present: true, revision: demoReport.revision, exclusion_reason: null });
     if (path === `/recordings/${demoRecording.id}/report/history`) return send(reportHistory);
     if (path === `/recordings/${demoRecording.id}/flow/bpmn`) {

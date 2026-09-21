@@ -32,6 +32,24 @@ export function knowledgeState(origin: string, validation: string) {
   if (origin === "inferred") return { key: "inferido", label: "Inferido" };
   return { key: "observado", label: "Observado" };
 }
+/*
+  Traduce el estado técnico de una sesión a la acción concreta que la
+  persona debería tomar. Así la tabla de sesiones dice "qué hago ahora" en
+  vez de repetir el mismo estado que ya muestra el badge.
+*/
+export function nextStepLabel(status: string) {
+  return (
+    {
+      capturing: "Continuar captura",
+      uploading: "Terminar subida",
+      queued: "En análisis",
+      processing: "En análisis",
+      ready: "Revisar aprendizaje",
+      completed: "Revisar aprendizaje",
+      failed: "Revisar error",
+    }[status] || "Abrir sesión"
+  );
+}
 export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +69,16 @@ export function useAction() {
     }
   }
   return { busy, error, run };
+}
+/*
+  Cada organización recibe un color estable para el punto del selector de
+  espacio de trabajo, derivado de su id: mismo cliente, mismo color, sin
+  guardar nada nuevo en la API.
+*/
+export function clientColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return `var(--client-${(hash % 6) + 1})`;
 }
 export function date(value: string) {
   return new Intl.DateTimeFormat("es-CO", {
