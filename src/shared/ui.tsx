@@ -1,6 +1,6 @@
 import { knowledgeState, labels } from "./utils";
-import { useEffect, useRef } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 export function Icon({
   name = "grid",
   size = 20,
@@ -88,6 +88,7 @@ export function Icon({
         <path d="M18 20v-7" />
       </>
     ),
+    chevron: <path d="m6 9 6 6 6-6" />,
   };
   return (
     <svg
@@ -190,10 +191,14 @@ export function ErrorNotice({ error }: { error: string }) {
 }
 export function Modal({
   title,
+  eyebrow,
+  className,
   children,
   close,
 }: {
   title: string;
+  eyebrow?: string;
+  className?: string;
   children: ReactNode;
   close: () => void;
 }) {
@@ -204,18 +209,142 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      className={className}
       onCancel={(e) => {
         e.preventDefault();
         close();
       }}
     >
       <div className="modal-heading">
-        <h2>{title}</h2>
+        <div>
+          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+          <h2>{title}</h2>
+        </div>
         <button className="icon-button" onClick={close} aria-label="Cerrar">
           ×
         </button>
       </div>
       {children}
     </dialog>
+  );
+}
+
+export type SelectOption = { value: string; label: string };
+/*
+  Un select propio: el navegador no deja estilizar la lista abierta de un
+  <select> nativo, y esa lista termina con la tipografía y el azul por
+  defecto del sistema operativo, fuera de la identidad del producto.
+*/
+export function Select({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  name,
+  className,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  ariaLabel?: string;
+  name?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const selected = options.find((o) => o.value === value) || options[0];
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (e: MouseEvent) => {
+      if (!wrapper.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+  function openMenu() {
+    setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    setOpen(true);
+  }
+  function commit(index: number) {
+    const option = options[index];
+    if (option) onChange(option.value);
+    setOpen(false);
+    trigger.current?.focus();
+  }
+  function onTriggerKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
+    if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+      e.preventDefault();
+      openMenu();
+    }
+  }
+  function onListKeyDown(e: KeyboardEvent<HTMLUListElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(options.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(0, i - 1));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setActive(options.length - 1);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      commit(active);
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      setOpen(false);
+      if (e.key === "Escape") trigger.current?.focus();
+    }
+  }
+  return (
+    <div className={`select-field ${className || ""}`} ref={wrapper}>
+      {name && <input type="hidden" name={name} value={value} />}
+      <button
+        type="button"
+        ref={trigger}
+        className="select-trigger"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={onTriggerKeyDown}
+      >
+        <span>{selected?.label ?? ""}</span>
+        <Icon name="chevron" size={15} />
+      </button>
+      {open && (
+        <ul
+          id={listId}
+          className="select-listbox"
+          role="listbox"
+          tabIndex={-1}
+          aria-label={ariaLabel}
+          ref={(node) => node?.focus()}
+          onKeyDown={onListKeyDown}
+        >
+          {options.map((option, index) => (
+            <li
+              key={option.value}
+              role="option"
+              aria-selected={option.value === value}
+              className={index === active ? "active" : ""}
+              onMouseEnter={() => setActive(index)}
+              onClick={() => commit(index)}
+            >
+              {option.value === value && <Icon name="check" size={13} />}
+              <span>{option.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

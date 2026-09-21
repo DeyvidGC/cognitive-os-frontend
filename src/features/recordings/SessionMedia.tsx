@@ -13,7 +13,7 @@ import ScreenStudio from "../capture/ScreenStudio";
 import AgentConversation from "../agent/AgentConversation";
 import RecordingReport from "./RecordingReport";
 import RecordingUploadPanel from "./RecordingUploadPanel";
-import { Badge, ErrorNotice, Icon } from "../../shared/ui";
+import { Badge, ErrorNotice, Icon, Select } from "../../shared/ui";
 import { date, useAction } from "../../shared/utils";
 import "./SessionMedia.css";
 import SessionJobs from "../sessions/SessionJobs";
@@ -28,6 +28,7 @@ export default function SessionMedia({
   onRecordingsChange,
   onSessionChange,
   onContextChange,
+  initialSource = "share",
 }: {
   api: Client;
   onOpenProcedure: (procedureId: string, versionId: string) => Promise<void>;
@@ -39,6 +40,7 @@ export default function SessionMedia({
   onRecordingsChange: (items: Recording[]) => void;
   onSessionChange: (session: Session) => void;
   onContextChange: () => Promise<void>;
+  initialSource?: "share" | "upload";
 }) {
   const [capabilities, setCapabilities] =
     useState<RecordingCapabilities | null>(null);
@@ -54,7 +56,7 @@ export default function SessionMedia({
   const [playbackError, setPlaybackError] = useState(false);
   const [externalClip, setExternalClip] = useState("");
   const [externalTitle, setExternalTitle] = useState("");
-  const [source, setSource] = useState<"share" | "upload">("share");
+  const [source, setSource] = useState<"share" | "upload">(initialSource);
   const [captureProtected, setCaptureProtected] = useState(false);
   const [reportDirty, setReportDirty] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -416,10 +418,10 @@ export default function SessionMedia({
       {recordings.length > 1 && (
         <label className="recording-picker">
           Videos de esta sesión
-          <select
+          <Select
+            ariaLabel="Videos de esta sesión"
             value={item?.id || ""}
-            onChange={async (event) => {
-              const id = event.target.value;
+            onChange={async (id) => {
               if (
                 protectedState &&
                 !(await confirmAction(
@@ -434,13 +436,11 @@ export default function SessionMedia({
               playbackPosition.current = 0;
               seek.current = null;
             }}
-          >
-            {recordings.map((recording, index) => (
-              <option key={recording.id} value={recording.id}>
-                Video {index + 1} · {date(recording.created_at)}
-              </option>
-            ))}
-          </select>
+            options={recordings.map((recording, index) => ({
+              value: recording.id,
+              label: `Video ${index + 1} · ${date(recording.created_at)}`,
+            }))}
+          />
         </label>
       )}
       <SessionJobs

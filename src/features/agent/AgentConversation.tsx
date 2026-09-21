@@ -292,7 +292,7 @@ export default function AgentConversation({
       <ErrorNotice error={error} />
       {tab === "conversation" && (
         <form
-          className="chat-composer"
+          className="agent-composer"
           onSubmit={(e) => {
             e.preventDefault();
             void run(async () => {

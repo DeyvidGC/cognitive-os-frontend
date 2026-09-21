@@ -1,13 +1,54 @@
 .policies-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1.3fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 18px;
   align-items: start;
+}
+.policies-side {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px #1b2a260f,
+    0 1px 1px #1b2a260a;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 560px;
+}
+.policies-tabs {
+  display: flex;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  padding: 3px;
+  flex-shrink: 0;
+}
+.policies-tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  padding: 9px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.policies-tabs button[aria-selected="true"] {
+  background: var(--surface-1);
+  color: var(--text);
+  box-shadow: 0 1px 3px #1b2a2626;
 }
 .policies-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
+  flex: 1;
 }
 .policies-toolbar {
   display: flex;
@@ -87,23 +128,26 @@
   color: var(--text-2);
   margin-top: 4px;
 }
-.policies-viewer,
-.policies-detail {
+.policies-viewer {
   background: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow:
     0 1px 2px #1b2a260f,
     0 1px 1px #1b2a260a;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-height: 560px;
-}
-.policies-viewer {
   padding: 0;
   overflow: hidden;
+}
+.policies-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
 }
 .policies-viewer > .empty {
   margin: auto;
@@ -161,20 +205,17 @@
 }
 @media (max-width: 1200px) {
   .policies-layout {
-    grid-template-columns: 260px 1fr;
-  }
-  .policies-detail {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) 300px;
   }
 }
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .policies-layout {
     grid-template-columns: 1fr;
   }
-  .policies-detail {
-    grid-column: auto;
-  }
   .policies-viewer {
     min-height: 420px;
+  }
+  .policies-side {
+    min-height: 0;
   }
 }

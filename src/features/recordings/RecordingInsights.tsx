@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { allPages, json } from "../../shared/api";
 import type { Client, Clarification, Version } from "../../shared/api";
 import type { RecordingReport, Job } from "./recordings";
-import { Badge, ErrorNotice, Icon } from "../../shared/ui";
+import { Badge, ErrorNotice, Icon, Select } from "../../shared/ui";
 import { useAction } from "../../shared/utils";
 import { formatDuration } from "../capture/screenCapture";
 import { confirmAction } from "../../shared/confirmAction";
@@ -370,20 +370,18 @@ export default function RecordingInsights({
         <>
           <label>
             Comparar con revisión anterior
-            <select
-              value={historical ?? ""}
-              onChange={(e) =>
-                setHistorical(e.target.value ? Number(e.target.value) : null)
-              }
-            >
-              <option value="">Selecciona una revisión</option>
-              {history.map((item) => (
-                <option key={item.revision} value={item.revision}>
-                  Revisión {item.revision} ·{" "}
-                  {new Date(item.created_at).toLocaleString("es")}
-                </option>
-              ))}
-            </select>
+            <Select
+              ariaLabel="Comparar con revisión anterior"
+              value={historical === null ? "" : String(historical)}
+              onChange={(v) => setHistorical(v ? Number(v) : null)}
+              options={[
+                { value: "", label: "Selecciona una revisión" },
+                ...history.map((item) => ({
+                  value: String(item.revision),
+                  label: `Revisión ${item.revision} · ${new Date(item.created_at).toLocaleString("es")}`,
+                })),
+              ]}
+            />
           </label>
           {!history.length && <p>No hay revisiones archivadas.</p>}
           {old && (

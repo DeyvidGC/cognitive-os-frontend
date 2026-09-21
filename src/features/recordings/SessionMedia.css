@@ -177,20 +177,20 @@
 .chat-question label {
   font-size: 11px;
 }
-.chat-composer {
+.agent-composer {
   border-top: 1px solid var(--line);
   padding-top: 13px;
   margin-top: 13px;
 }
-.chat-composer label {
+.agent-composer label {
   font-size: 11px;
   margin-bottom: 10px;
 }
-.chat-composer textarea {
+.agent-composer textarea {
   font-size: 12px;
   min-height: 72px;
 }
-.chat-composer button {
+.agent-composer button {
   font-size: 11px;
   padding: 9px 13px;
   width: 100%;

@@ -17,6 +17,7 @@ import {
   Icon,
   KnowledgeChip,
   Modal,
+  Select,
   StateBar,
 } from "../../shared/ui";
 export default function ProcedureDetail({
@@ -35,6 +36,7 @@ export default function ProcedureDetail({
   const [versions, setVersions] = useState<Version[]>([]);
   const [selected, setSelected] = useState(initialVersion);
   const [creating, setCreating] = useState(false);
+  const [newVersionSource, setNewVersionSource] = useState("");
   const [loading, setLoading] = useState(true);
   const { busy, error, run } = useAction();
   const canWrite = membership.role === "owner" || membership.role === "author";
@@ -62,7 +64,13 @@ export default function ProcedureDetail({
           <p>{procedure.scope}</p>
         </div>
         {canWrite && (
-          <button className="primary" onClick={() => setCreating(true)}>
+          <button
+            className="primary"
+            onClick={() => {
+              setNewVersionSource("");
+              setCreating(true);
+            }}
+          >
             <Icon name="plus" size={18} />
             Nueva versión
           </button>
@@ -85,16 +93,15 @@ export default function ProcedureDetail({
           <div className="version-bar">
             <label>
               Versión
-              <select
+              <Select
+                ariaLabel="Versión"
                 value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                {versions.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    Versión {v.version_number}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelected}
+                options={versions.map((v) => ({
+                  value: v.id,
+                  label: `Versión ${v.version_number}`,
+                }))}
+              />
             </label>
             {version && <Badge status={version.status} />}
           </div>
@@ -131,7 +138,7 @@ export default function ProcedureDetail({
                   `/procedures/${procedure.id}/versions`,
                   json({
                     summary: f.get("summary"),
-                    source_session_id: f.get("source") || null,
+                    source_session_id: newVersionSource || null,
                   }),
                 );
                 setCreating(false);
@@ -150,14 +157,15 @@ export default function ProcedureDetail({
               </label>
               <label>
                 Sesión de origen
-                <select name="source">
-                  <option value="">Sin sesión vinculada</option>
-                  {sessions.map((s) => (
-                    <option value={s.id} key={s.id}>
-                      {s.objective}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  ariaLabel="Sesión de origen"
+                  value={newVersionSource}
+                  onChange={setNewVersionSource}
+                  options={[
+                    { value: "", label: "Sin sesión vinculada" },
+                    ...sessions.map((s) => ({ value: s.id, label: s.objective })),
+                  ]}
+                />
               </label>
               <button className="primary full">
                 {busy ? "Creando…" : "Crear borrador"}
@@ -192,7 +200,35 @@ function VersionEditor({
     version.source_session_id || "",
   );
   const [editing, setEditing] = useState<Step | "new" | null>(null);
+  // Reset the pickers during render (not an effect) whenever a different
+  // step opens for editing, matching React's guidance for state that mirrors
+  // a changed identity: https://react.dev/learn/you-might-not-need-an-effect
+  const [editingFor, setEditingFor] = useState<Step | "new" | null>(null);
+  const [stepOrigin, setStepOrigin] = useState("user_explained");
+  const [stepValidation, setStepValidation] = useState("pending");
+  if (editing !== editingFor) {
+    setEditingFor(editing);
+    setStepOrigin(
+      editing === "new" || !editing ? "user_explained" : editing.origin,
+    );
+    setStepValidation(
+      editing === "new" || !editing ? "pending" : editing.validation_status,
+    );
+  }
   const [linking, setLinking] = useState<Step | null>(null);
+  const [evidencePickerFor, setEvidencePickerFor] = useState<{
+    linking: Step | null;
+    evidenceSession: string;
+  } | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState("");
+  if (
+    !evidencePickerFor ||
+    evidencePickerFor.linking !== linking ||
+    evidencePickerFor.evidenceSession !== evidenceSession
+  ) {
+    setEvidencePickerFor({ linking, evidenceSession });
+    setSelectedEvidence("");
+  }
   const [retiring, setRetiring] = useState(false);
   const [message, setMessage] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -612,31 +648,31 @@ function VersionEditor({
               </label>
               <label>
                 Origen
-                <select
+                <Select
                   name="origin"
-                  defaultValue={
-                    editing === "new" ? "user_explained" : editing.origin
-                  }
-                >
-                  <option value="user_explained">
-                    Explicado por el usuario
-                  </option>
-                  <option value="observed">Observado</option>
-                  <option value="inferred">Inferido</option>
-                </select>
+                  ariaLabel="Origen"
+                  value={stepOrigin}
+                  onChange={setStepOrigin}
+                  options={[
+                    { value: "user_explained", label: "Explicado por el usuario" },
+                    { value: "observed", label: "Observado" },
+                    { value: "inferred", label: "Inferido" },
+                  ]}
+                />
               </label>
               <label>
                 Validación
-                <select
+                <Select
                   name="validation_status"
-                  defaultValue={
-                    editing === "new" ? "pending" : editing.validation_status
-                  }
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="confirmed">Confirmado</option>
-                  <option value="rejected">Rechazado</option>
-                </select>
+                  ariaLabel="Validación"
+                  value={stepValidation}
+                  onChange={setStepValidation}
+                  options={[
+                    { value: "pending", label: "Pendiente" },
+                    { value: "confirmed", label: "Confirmado" },
+                    { value: "rejected", label: "Rechazado" },
+                  ]}
+                />
               </label>
               <button className="primary full">Guardar paso</button>
             </fieldset>
@@ -656,11 +692,13 @@ function VersionEditor({
               e.preventDefault();
               const f = new FormData(e.currentTarget);
               void run(async () => {
+                if (!selectedEvidence)
+                  throw new Error("Selecciona una captura de evidencia.");
                 await api(
                   `${path}/steps/${linking.id}/evidence`,
                   json(
                     {
-                      evidence_id: f.get("evidence_id"),
+                      evidence_id: selectedEvidence,
                       explanation: f.get("explanation"),
                     },
                     "PUT",
@@ -675,10 +713,10 @@ function VersionEditor({
               {!version.source_session_id && (
                 <label>
                   Sesión con evidencias
-                  <select
+                  <Select
+                    ariaLabel="Sesión con evidencias"
                     value={evidenceSession}
-                    onChange={(e) => {
-                      const id = e.target.value;
+                    onChange={(id) => {
                       setEvidenceSession(id);
                       setEvidence([]);
                       if (id)
@@ -690,26 +728,28 @@ function VersionEditor({
                           ),
                         );
                     }}
-                  >
-                    <option value="">Selecciona una sesión</option>
-                    {sessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.objective}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "", label: "Selecciona una sesión" },
+                      ...sessions.map((s) => ({ value: s.id, label: s.objective })),
+                    ]}
+                  />
                 </label>
               )}
               <label>
                 Evidencia de respaldo
-                <select name="evidence_id" required>
-                  <option value="">Seleccionar captura</option>
-                  {evidence.map((e, i) => (
-                    <option value={e.id} key={e.id}>
-                      Captura {i + 1} · {Math.ceil(e.size_bytes / 1024)} KB
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  name="evidence_id"
+                  ariaLabel="Evidencia de respaldo"
+                  value={selectedEvidence}
+                  onChange={setSelectedEvidence}
+                  options={[
+                    { value: "", label: "Seleccionar captura" },
+                    ...evidence.map((e, i) => ({
+                      value: e.id,
+                      label: `Captura ${i + 1} · ${Math.ceil(e.size_bytes / 1024)} KB`,
+                    })),
+                  ]}
+                />
               </label>
               {evidenceSession && !evidence.length && (
                 <p className="form-intro">

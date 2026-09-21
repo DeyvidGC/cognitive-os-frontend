@@ -273,6 +273,90 @@ pre {
   gap: 10px;
   margin-top: 26px;
 }
+/*
+  Select propio: mismo aspecto cerrado que un input y una lista abierta con
+  la identidad del producto, en vez del menú nativo del sistema operativo.
+*/
+.select-field {
+  position: relative;
+}
+.select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 14px;
+  text-align: left;
+  background: var(--surface-0);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  color: var(--text);
+}
+.select-trigger:hover {
+  border-color: var(--accent-deep);
+}
+.select-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.select-trigger svg {
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: transform 0.16s;
+}
+.select-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.select-listbox {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 16px 40px #1b2a2626;
+  outline: none;
+  font-family: var(--sans);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  color: var(--text);
+}
+.select-listbox li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.select-listbox li svg {
+  flex-shrink: 0;
+  color: var(--accent-deep);
+}
+.select-listbox li:not(:has(svg)) {
+  padding-left: 27px;
+}
+.select-listbox li.active {
+  background: var(--surface-3);
+}
+.select-listbox li[aria-selected="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
 .screen-studio {
   scroll-margin-top: 24px;
 }

@@ -16,6 +16,22 @@ import { Badge, Empty, ErrorNotice, Icon, Modal } from "../../shared/ui";
 import SessionMedia from "../recordings/SessionMedia";
 import type { Recording, Job } from "../recordings/recordings";
 import JobProgress from "./JobProgress";
+import SessionFlow from "./SessionFlow";
+/*
+  El contrato de Session.status no incluye el estado editorial del
+  procedimiento, así que el paso "Publicar" nunca se marca como actual aquí:
+  ver docs/redesign-home-usage.md.
+*/
+function sessionStage(status: string) {
+  if (["completed", "ready", "failed"].includes(status)) return 2;
+  if (
+    ["capturing", "uploading", "uploaded", "queued", "processing"].includes(
+      status,
+    )
+  )
+    return 1;
+  return 0;
+}
 export default function SessionDetail({
   api,
   onNewSession,
@@ -25,6 +41,7 @@ export default function SessionDetail({
   userId,
   onCaptureProtectedChange,
   procedures = [],
+  initialSource = "share",
 }: {
   onNewSession: () => void;
   api: Client;
@@ -34,6 +51,7 @@ export default function SessionDetail({
   userId: string;
   onCaptureProtectedChange: (value: boolean) => void;
   procedures?: Procedure[];
+  initialSource?: "share" | "upload";
 }) {
   const [current, setCurrent] = useState(session);
   const [recordings, setRecordings] = useState<Recording[]>([]);
@@ -133,6 +151,7 @@ export default function SessionDetail({
           )}
         </div>
       </div>
+      <SessionFlow stage={sessionStage(current.status)} />
       {current.procedure_id && (
         <div className="info">
           Esta sesión actualiza{" "}
@@ -179,6 +198,7 @@ export default function SessionDetail({
         onOpenProcedure={onOpenProcedure}
         api={api}
         session={current}
+        initialSource={initialSource}
         writable={canWrite}
         canManage={
           membership.role === "owner" ||

@@ -30,14 +30,17 @@ type Turn = {
 export default function Policies({
   api,
   canManage,
+  onFocusChange,
 }: {
   api: Client;
   canManage: boolean;
+  onFocusChange?: (focus: { id: string; title: string } | null) => void;
 }) {
   const [items, setItems] = useState<PolicyDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [tab, setTab] = useState<"documents" | "ask">("documents");
   const [upload, setUpload] = useState<{
     name: string;
     stage: string;
@@ -64,6 +67,12 @@ export default function Policies({
       .includes(filter.toLowerCase()),
   );
   const selected = items.find((p) => p.id === selectedId) || null;
+  useEffect(() => {
+    onFocusChange?.(
+      selected ? { id: selected.id, title: selected.title || "Documento sin título" } : null,
+    );
+    return () => onFocusChange?.(null);
+  }, [selected, onFocusChange]);
   useEffect(() => {
     setViewerUrl("");
     if (!selected || selected.status !== "ready") return;
@@ -148,132 +157,134 @@ export default function Policies({
       setAsking(false);
     }
   }
-  return (
-    <div className="policies-layout">
-      <section className="policies-list">
-        <div className="policies-toolbar">
-          <input
-            className="filter"
-            aria-label="Buscar por título"
-            placeholder="Buscar por título…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          {canManage && (
-            <div className="policies-actions">
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const result = await api<{ discovered: number }>(
-                      "/policies/sync",
-                      { method: "POST" },
-                    );
-                    await load();
-                    window.alert(
-                      result.discovered
-                        ? `Se encontraron ${result.discovered} documento(s) nuevos en el almacenamiento.`
-                        : "No hay documentos nuevos en el almacenamiento.",
-                    );
-                  })
-                }
-              >
-                <Icon name="upload" size={15} />
-                Sincronizar carpeta
-              </button>
-              <button
-                className="primary"
-                disabled={!!upload}
-                onClick={() => fileRef.current?.click()}
-              >
-                <Icon name="plus" size={16} />
-                Subir póliza
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/pdf"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) void pickFile(file);
-                }}
-              />
-            </div>
-          )}
-        </div>
-        {upload && (
-          <div className="policies-upload-progress">
-            <p>
-              {upload.name} · {upload.stage}
-            </p>
-            <div className="policies-progress-track">
-              <span style={{ width: `${upload.percent}%` }} />
-            </div>
-          </div>
-        )}
-        <ErrorNotice error={error} />
-        {error && loading && (
-          <button className="secondary" onClick={() => void run(load)}>
-            Reintentar carga
-          </button>
-        )}
-        {loading ? (
-          <div className="loading" role="status">
-            Cargando documentos…
-          </div>
-        ) : (
-          <div className="policies-items">
+  const documentsTab = (
+    <div className="policies-list">
+      <div className="policies-toolbar">
+        <input
+          className="filter"
+          aria-label="Buscar por título"
+          placeholder="Buscar por título…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {canManage && (
+          <div className="policies-actions">
             <button
-              className={
-                !selectedId ? "policy-item active" : "policy-item"
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const result = await api<{ discovered: number }>(
+                    "/policies/sync",
+                    { method: "POST" },
+                  );
+                  await load();
+                  window.alert(
+                    result.discovered
+                      ? `Se encontraron ${result.discovered} documento(s) nuevos en el almacenamiento.`
+                      : "No hay documentos nuevos en el almacenamiento.",
+                  );
+                })
               }
-              onClick={() => setSelectedId("")}
+            >
+              <Icon name="upload" size={15} />
+              Sincronizar carpeta
+            </button>
+            <button
+              className="primary"
+              disabled={!!upload}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Icon name="plus" size={16} />
+              Subir póliza
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void pickFile(file);
+              }}
+            />
+          </div>
+        )}
+      </div>
+      {upload && (
+        <div className="policies-upload-progress">
+          <p>
+            {upload.name} · {upload.stage}
+          </p>
+          <div className="policies-progress-track">
+            <span style={{ width: `${upload.percent}%` }} />
+          </div>
+        </div>
+      )}
+      <ErrorNotice error={error} />
+      {error && loading && (
+        <button className="secondary" onClick={() => void run(load)}>
+          Reintentar carga
+        </button>
+      )}
+      {loading ? (
+        <div className="loading" role="status">
+          Cargando documentos…
+        </div>
+      ) : (
+        <div className="policies-items">
+          <button
+            className={!selectedId ? "policy-item active" : "policy-item"}
+            onClick={() => {
+              setSelectedId("");
+              setTab("ask");
+            }}
+          >
+            <div>
+              <h3>Todos los documentos</h3>
+              <p>{items.length} en total</p>
+            </div>
+          </button>
+          {visible.map((p) => (
+            <button
+              key={p.id}
+              className={
+                selectedId === p.id ? "policy-item active" : "policy-item"
+              }
+              onClick={() => {
+                setSelectedId(p.id);
+                setTab("ask");
+              }}
             >
               <div>
-                <h3>Todos los documentos</h3>
-                <p>{items.length} en total</p>
+                <h3>{p.title || "Documento sin título"}</h3>
+                <p>
+                  {formatSize(p.size_bytes)} · {date(p.created_at)}
+                  {p.status === "failed" && p.error_code
+                    ? ` · ${p.error_code}`
+                    : ""}
+                </p>
               </div>
+              <Badge status={p.status} />
             </button>
-            {visible.map((p) => (
-              <button
-                key={p.id}
-                className={
-                  selectedId === p.id ? "policy-item active" : "policy-item"
-                }
-                onClick={() => setSelectedId(p.id)}
-              >
-                <div>
-                  <h3>{p.title || "Documento sin título"}</h3>
-                  <p>
-                    {formatSize(p.size_bytes)} · {date(p.created_at)}
-                    {p.status === "failed" && p.error_code
-                      ? ` · ${p.error_code}`
-                      : ""}
-                  </p>
-                </div>
-                <Badge status={p.status} />
-              </button>
-            ))}
-            {!visible.length && (
-              <Empty
-                title={
-                  filter
-                    ? "Sin coincidencias"
-                    : "Todavía no hay documentos"
-                }
-                icon="shield"
-              >
-                {filter
-                  ? "Prueba con otro título."
-                  : "Sube una póliza o sincroniza tu carpeta de almacenamiento."}
-              </Empty>
-            )}
-          </div>
-        )}
-      </section>
+          ))}
+          {!visible.length && (
+            <Empty
+              title={filter ? "Sin coincidencias" : "Todavía no hay documentos"}
+              icon="shield"
+            >
+              {filter
+                ? "Prueba con otro título."
+                : "Sube una póliza o sincroniza tu carpeta de almacenamiento."}
+            </Empty>
+          )}
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <div className="policies-layout">
       <section className="policies-viewer">
         {selected ? (
           <>
@@ -380,16 +391,40 @@ export default function Policies({
           </Empty>
         )}
       </section>
-      <section className="policies-detail">
-        <div className="policies-detail-head">
-          <h2>Panel IA</h2>
-          <p className="muted">
-            {selected
-              ? "Responde sobre el documento seleccionado."
-              : "Responde sobre toda la biblioteca analizada."}
-          </p>
+      <section className="policies-side">
+        <div className="policies-tabs" role="tablist" aria-label="Panel de pólizas">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "documents"}
+            onClick={() => setTab("documents")}
+          >
+            <Icon name="shield" size={14} />
+            Documentos
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "ask"}
+            onClick={() => setTab("ask")}
+          >
+            <Icon name="message" size={14} />
+            Preguntar
+          </button>
         </div>
-        <div className="chat-scroll policies-ask-scroll">
+        {tab === "documents" ? (
+          documentsTab
+        ) : (
+          <div className="policies-detail">
+            <div className="policies-detail-head">
+              <h2>Panel IA</h2>
+              <p className="muted">
+                {selected
+                  ? "Responde sobre el documento seleccionado."
+                  : "Responde sobre toda la biblioteca analizada."}
+              </p>
+            </div>
+            <div className="chat-scroll policies-ask-scroll">
           {turns.length === 0 && (
             <div className="chat-empty">
               <span className="empty-icon">
@@ -467,10 +502,12 @@ export default function Policies({
             maxLength={1200}
             disabled={asking}
           />
-          <button className="primary" disabled={asking || !question.trim()}>
-            {asking ? "Enviando…" : "Preguntar"}
-          </button>
-        </form>
+              <button className="primary" disabled={asking || !question.trim()}>
+                {asking ? "Enviando…" : "Preguntar"}
+              </button>
+            </form>
+          </div>
+        )}
       </section>
     </div>
   );

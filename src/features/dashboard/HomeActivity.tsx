@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import type { Client } from "../../shared/api";
 import type { HomeSummary } from "./dashboard";
 import "./Dashboard.css";
 
@@ -14,33 +12,20 @@ function relativeTime(iso: string) {
 function actorBadge(name: string) {
   return name === "Cognitive IA" ? "IA" : name.slice(0, 2).toUpperCase();
 }
-export default function HomeActivity({
-  api,
-  organizationName,
-}: {
-  api: Client;
-  organizationName: string;
-}) {
-  const [summary, setSummary] = useState<HomeSummary | null>(null);
-  useEffect(() => {
-    let active = true;
-    api<HomeSummary>("/dashboard/home")
-      .then((s) => active && setSummary(s))
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [api]);
-  if (!summary || !summary.recent_activity.length) return null;
+export default function HomeActivity({ summary }: { summary: HomeSummary }) {
   return (
     <section className="panel activity-panel">
       <div className="section-heading">
         <div>
-          <h2>Actividad reciente en {organizationName}</h2>
-          <p>Lo último que aprendió o dejó pendiente Cognitive.</p>
+          <h2>Actividad del equipo</h2>
         </div>
       </div>
       <ul className="activity-list">
+        {!summary.recent_activity.length && (
+          <li className="activity-empty">
+            La actividad del equipo aparecerá aquí.
+          </li>
+        )}
         {summary.recent_activity.map((entry) => (
           <li key={entry.id} className="activity-row">
             <span

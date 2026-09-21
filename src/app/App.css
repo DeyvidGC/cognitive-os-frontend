@@ -99,23 +99,29 @@
   flex-shrink: 0;
   border-radius: 3px;
 }
-.organization select {
+.organization-select {
   flex: 1;
   min-width: 0;
+}
+.organization-select .select-trigger {
   padding: 0;
   border: 0;
   background: transparent;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 0;
   color: #fff;
-  appearance: none;
-  -webkit-appearance: none;
 }
-.organization-caret {
+.organization-select .select-trigger:hover {
+  border-color: transparent;
+}
+.organization-select .select-trigger[aria-expanded="true"] {
+  box-shadow: none;
+}
+.organization-select .select-trigger svg {
   color: #a9c7bf;
-  font-size: 10px;
-  flex-shrink: 0;
+}
+.organization-select .select-listbox {
+  min-width: 200px;
 }
 .nav-label {
   display: block;
@@ -1749,7 +1755,7 @@ dialog::backdrop {
   .organization small {
     font-size: 7px;
   }
-  .organization select {
+  .organization-select .select-trigger {
     font-size: 10px;
   }
 
@@ -1793,6 +1799,7 @@ dialog::backdrop {
     gap: 16px;
   }
   .procedure-grid,
+  .procedure-grid.vivid,
   .module-grid {
     grid-template-columns: 1fr;
   }
@@ -1860,7 +1867,7 @@ dialog::backdrop {
   .organization small {
     font-size: 6px;
   }
-  .organization select {
+  .organization-select .select-trigger {
     font-size: 9px;
   }
   .organization .workspace-avatar {
